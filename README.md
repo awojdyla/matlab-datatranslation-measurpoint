@@ -10,9 +10,13 @@ THIS SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND
 
 ## Usage
 `mp = MEASURpoint();         % create the object`
+
 `mp.connect();               % connect to the instrument`
+
 `mp.idn();                   % ask the instrument identity`
+
 `cAnswer     = mp.query('MEAS:VOLT? (@1)') % queries the instrument`
+
 `dTemp_degC  = mp.measure_temperature(2);  % measure temperature on ch2`
 
 ## A few hurdles

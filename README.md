@@ -1,5 +1,4 @@
 # matlab-datatranslation-measurpoint
-======
 
 ## About
 It requires NI VISA (to make sure it is installed on you computer, type "ver" in the Matlab command line)

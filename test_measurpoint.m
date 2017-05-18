@@ -1,120 +1,3 @@
-ni = visa('ni', 'TCPIP::192.168.127.100::INSTR');
-
-%%
-fopen(ni);
-
-%%
-fclose(ni)
-
-%% WORKS
-query(ni,'*IDN?')
-
-%% WORKS
-query(ni,'SYSTem:BOArd?')
-
-%% WORKS
-query(ni,'SYST:CHAN?')
-
-%% WORKS - error status
-query(ni,':SYST:ERR?')
-
-%% Remove password
-query(ni,':SYST:PASS:CEN admin')
-
-%%
-query(ni,':SYSTem:PASSword:CENable:STATe?')
-
-%% works 
-clc
-query(ni,'MEAS:VOLT? (@2)','%s','%x')
-%a = query(ni,'MEAS:VOLT? (@2)','%x')
-%b = sprintf('%x',a);
-%size(b)
-%%
-        fprintf(ni, 'MEAS:VOLT? (@2)');
-        idn = fgets(ni,8);
-        size(idn)
-
-
-%% Does not work, but shouldn't
-query(ni,':MEASure:RES?')
-query(ni,'SYST:ERR?')
-
-%% Works
-query(ni,'MEAS:TEMP:TC? DEF,(@2)')
-% def is for default type of sensor
-query(ni,'SYST:ERR?')
-%% Works
-query(ni,'MEAS:TEMP:TC? K,(@2)')
-% def is for K type of sensor
-%%
-
-
-%query(ni,'SYST:ERR?')
-
-%% Works
-out = query(ni,'MEAS:TEMP:TC? K,(@2)');
-% def is for K type of sensor
-query(ni,'SYST:ERR?')
-
-
-%% WORKS - configure TC
-query(ni,':CONF:TEMP:TC K, (@2)')
-query(ni,':CONF?')
-
-%%
-query(ni,':CONF?')
-
-%%
-query(ni,'SYST:ERR?')
-%%
-query(ni,'*STB?')
-
-%%
-query(ni,'*STB?')
-
-%% WORKS
-query(ni,'STAT:QUES?')
-% 0 is normal behavoir
-
-
-%% WORKS
-query(ni,'CONF?')
-%returns the configuration of specified analog input channels on the
-%instrument
-
-%% WORKS
-query(ni,'CONF:SCA:LIST?')
-%returns the list that are enabled for scanning on the instrument
-% ...apparently zero
-
-%% WORKS
-query(ni,'CONF:SCA:RATE?')
-% scan rate
-
-%% CANNOT
-query(ni,'MEAS:RES?')
-
-%% WORKS
-query(ni,'OUTPUT?')
-% Returns the current state of all 8 output lines of the digital output
-% port as a wighed sum of all lines that are on
-
-%% WORKS
-query(ni,'STAT:OPER:COND?')
-
-%% DOES NOT WORK
-query(ni,':STAT:OPER:ENAB')
-
-%% DOES NOT WORK
-query(ni,'STAT:CHAN:VOLT:RANG?')
-
-%% DOES NOT WORK
-query(ni,'MEAS:VOLT?')
-
-%% DOES NOT WORK
-query(ni,'MEAS:VOLT? (@4:6)')
-
 %% Initiate the instrument class
 mp = MEASURpoint();
 
@@ -122,56 +5,134 @@ mp = MEASURpoint();
 mp.connect();
 
 %% Ask the instument its id using SCPI standard queries
-mp.idn;
+mp.idn
+
+%% Enable readout on protected channels
+mp.enable;
+
+%% Regular query
+a = mp.queryData('MEAS:TEMP:TC? DEF,(@3)',8);
 
 %% Ask the instrument its port configuration
-mp.CONF;
+mp.CONF
 
 %% Ask the instrument which channels are configured
 mp.SYSTCHAN;
 
-%% Ask the instrument to measure something it can read
-out = mp.MEASVOLT;
-size(out)
-%% Ask the instrument to measure something it cannot read
-mp.MEASRES;
+%% Ask the instrument to measure voltage
+mp.MEASVOLT;
 
-%%
-out = mp.MEASTEMP;
-size(out)
-%%
-temp = mp.measure_temperature(2);
-fprintf('temperature = %2.1f\n',temp)
+%% Read a temperature on channel 2 (for debugging purpose)
+mp.MEASTEMP;
 
-%%
-volt = mp.measure_voltage(2);
-fprintf('temperature = %2.1f\n', volt)
-%%
-%% parsing the answer
-xout = dec2hex(uint8(out));
-hd = xout(1,:);
-dec1 = xout(2,:);
-dec2 = xout(3,:);
-hex1 = xout(4,:);
-hex2 = xout(5,:);
-hex3 = xout(6,:);
-hex4 = xout(7,:);
-cr = xout(8,:);
+%% Get all channel types (These cannot be set)
+[tc, rtd, volt] = mp.channelType();
+fprintf('TC   sensor channels = %s\n',num2str(tc,'%02.0f '))
+fprintf('RTD  sensor channels = %s\n',num2str(rtd,'%02.0f '))
+fprintf('Volt sensor channels = %s\n',num2str(volt,'%02.0f '))
+fprintf('\n')
 
-val_hex = strcat(hex1,hex2,hex3,hex4);
-% no direct hex2bin conversion
-% if no sign add it
-val_b = strcat('0',dec2bin(hex2dec(val_hex)));
-%%
-signum = sign(-(str2num(val_b(1))-0.5));
-exponent = 2^(bin2dec(val_b(3:9))-1);
-bits = str2num(val_b(10:end)')';
-weights = 2.^(-(1:length(bits)));
-mantissa = 1+sum(bits.*weights);
+%% Get sensor types
+channel = 3;
+sensorType = mp.getSensorType(channel);
+fprintf('Channel %d has a ''%s''-type sensor\n',channel,sensorType)
+%% Get multiple sensor types
+[~, rtd, ~] = mp.channelType(); % get all RTDs
+sensor_types = mp.getSensorType(rtd);
+fprintf('%s ',sensor_types{:})
+fprintf('\n')
 
-exponent;
-signum*mantissa*2^exponent
-%%
-%c7ad9c00 = ?88888°
-%41bd99b6 = 27.7° C
+%% Set sensor type
+channel = 3;
+new_type = 'J';
+mp.setSensorType(channel,new_type);
+fprintf('Channel %d has a ''%s''-type sensor\n',channel,mp.getSensorType(channel))
 
+%% Measure temperature on a specific channel (TC)
+channel = 3;
+temp_C = mp.measure_temperature_tc(channel);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on a specific channel (TC), with sensor type
+channel = 3;
+sensorType = 'J';
+temp_C = mp.measure_temperature_tc(channel, sensorType);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on multiple channels (TC), with sensor type
+channel_list = 0:7;
+temp_C = mp.measure_temperature_tc(channel_list);
+fprintf('temperatures = ')
+fprintf('%2.3fC - ',temp_C)
+fprintf('\n')
+
+%% Measure temperature on a specific channel (RTD)
+channel = 9;
+temp_C = mp.measure_temperature_rtd(channel);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on a specific channel (RTD), with sensor type
+channel = 9;
+temp_C = mp.measure_temperature_rtd(channel,'PT100');
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on a multiple channel (RTD), with sensor type
+channel_list = 9:12;
+temp_C = mp.measure_temperature_rtd(channel_list,'PT100');
+fprintf('temperatures = ')
+fprintf('%2.3fC - ',temp_C)
+fprintf('\n')
+
+%% Measure voltage on one channel
+channel = 3;
+volt = mp.measure_voltage(channel);
+fprintf('voltage = %2.1f V\n', volt)
+
+%% Measure voltage on multiple channel
+channel_list = [10,40:42];
+volt = mp.measure_voltage(channel_list);
+fprintf('voltages = ')
+fprintf('%2.1eV  -  ', volt)
+fprintf('\n')
+
+%% Measure on mixed channels
+channel_list = floor(rand(1,10)*48);
+[readings, channel_map] = mp.measure_multi(channel_list);
+fprintf('channel : ')
+fprintf('%06.0f ',channel_map)
+fprintf('\nreading : ')
+fprintf('%06.0f ',readings)
+fprintf('\n')
+
+%% Unpack and convert data (single measurement)
+bytestring1 = '23313441B513420A';
+bitstring1  = mp.unpack(bytestring1);
+value = mp.convertIEEE_754(bitstring1{1});
+fprintf('IEEE 754 single precision conversion - value = %2.3f, expected: 22.634\n',value)
+% 22.6344
+
+%% Unpack and convert data (multiple measurement)
+bytestring2 = '2332313241B5134241bd99b6425A73620a';
+bitstring2  = mp.unpack(bytestring2);
+%mp.convertIEEE_754('425A7362')
+value1 = mp.convertIEEE_754(bitstring2{1});
+value2 = mp.convertIEEE_754(bitstring2{2});
+value3 = mp.convertIEEE_754(bitstring2{3});
+fprintf('multiple IEEE 754 single precision conversion\n')
+fprintf('values =  %2.3f; %2.3f; %2.3f\n', value1, value2, value3)
+fprintf('expected: 22.634; 23.700; 54.612\n')
+
+
+%% Get error message
+get_error(mp)
+
+%% Continous reading on one channel, displayed in the command window
+channel =3;
+dt_s = 0.3;
+mp.monitor_terminal(channel, dt_s);
+
+%% Continous reading on one channel, displayed as a graph
+channel =3;
+dt_s = 0.3;
+N_pts = 100;
+mp.monitor_graph(channel, dt_s, N_pts);

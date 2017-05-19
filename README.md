@@ -82,6 +82,7 @@ doc MEASURpoint
 You can use the monitor (`mp.monitor_graph`) to read the temperature over a determined time-interval
 
 ```matlab
+channel = 3; 		% channel
 dt_s = 0.3 			% refresh rate
 N_pts = 100			% number of points
 mp.monitor_graph(dt_s,N_pts)
@@ -126,15 +127,22 @@ To make sure the device is properly connected, type the IP in your web browser (
 If you have a Mac talking to the device through a router, make sure you are using DHCP. The adress of the device can be assigned at random, and the best thing to do is to figure out what are the attached device.
 ![IP configuration on a Mac][ip_configuration]
 
-You can also use PyVisa to test the connection.
+You can also use PyVisa to test the connection:
+make sure you have [NI-Visa Runtime engine](http://www.ni.com/nisearch/app/main/p/bot/no/ap/tech/lang/en/pg/1/sn/catnav:du,n8:3.25.123.1640,ssnav:ndr/) and  [PyVisa](https://pyvisa.readthedocs.io/en/stable/) installed (if not, type `pip install pyvisa` in the terminal), then in python (changing the IP if needed):
+
+```python
+import pyvisa
+rm   = pyvisa.ResourceManager()
+inst = rm.open_resource('TCPIP::192.168.127.100::INSTR')
+print(inst.query("*IDN?"))
+```
 
 ## Troubleshooting 
-If Matlab cannot connect
+
 
 ## References
-[SCPI Programmer’s Manual for LXI Measurement Instruments](http://www.omgl.com.cn/upfile/File/2011/DT/SCPI_Programmer%27s_Manual_for_MEASURpoint_Ethernet(LXI)_Instruments.pdf)
+[SCPI Programmer’s Manual for LXI Measurement Instruments](http://www.omgl.com.cn/upfile/File/2011/DT/SCPI_Programmer%27s_Manual_for_MEASURpoint_Ethernet(LXI)_Instruments.pdf)GATTACA$1
 
-## Useful tools 
 
 [ip_configuration]: https://github.com/awojdyla/matlab-datatranslation-measurpoint/blob/master/assets/ip_configuration.png
 "IP configuration for a Mac"

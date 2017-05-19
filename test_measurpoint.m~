@@ -130,20 +130,17 @@ fprintf('multiple IEEE 754 single precision conversion\n')
 fprintf('values =  %2.3f; %2.3f; %2.3f\n', value1, value2, value3)
 fprintf('expected: 22.634; 23.700; 54.612\n')
 
-%% Get error message
-mp.get_error()
 
-%% 
-if false % so that the script can be "Run" all at once
+%% Get error message
+get_error(mp)
+
 %% Continous reading on one channel, displayed in the command window
-channel = 3;
+channel =3;
 dt_s = 0.3;
 mp.monitor_terminal(channel, dt_s);
 
 %% Continous reading on one channel, displayed as a graph
 channel =3;
-dt_s = 0.1;
+dt_s = 0.3;
 N_pts = 100;
 mp.monitor_graph(channel, dt_s, N_pts);
-%%
-end

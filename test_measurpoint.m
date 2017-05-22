@@ -92,9 +92,9 @@ fprintf('%2.3fC - ',temp_C)
 fprintf('\n')
 
 %% Measure voltage on one channel
-channel = 3;
+channel = 44;
 volt = mp.measure_voltage(channel);
-fprintf('voltage = %2.1f V\n', volt)
+fprintf('voltage = %2.3f V\n', volt)
 
 %% Measure voltage on multiple channel
 channel_list = [10,40:42];
@@ -146,4 +146,5 @@ dt_s = 0.1;
 N_pts = 100;
 mp.monitor_graph(channel, dt_s, N_pts);
 %%
+
 end

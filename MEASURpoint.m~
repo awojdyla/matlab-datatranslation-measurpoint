@@ -759,7 +759,7 @@ methods
         %IEEE_754 convention
         % see https://www.h-schmidt.net/FloatConverter/IEEE754.html
         
-        % padding with zeros
+        % padding with 
         val_b = str_bits;
         while length(val_b)<32
             %add invisble leading bit (underflow)

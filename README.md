@@ -25,8 +25,6 @@ To use it, you will need :
   
 To make sure the later is installed on you computer, type `ver` in the Matlab command line.
 
-You might also need to have [NI VISA (download)](http://sine.ni.com/psp/app/doc/p/id/psp-411) installed on your computer.
-
 Make sure the `MEASURpoint.m` class is in you current directory, or at least that it is in you path, *e.g.* : 
 
 ```matlab

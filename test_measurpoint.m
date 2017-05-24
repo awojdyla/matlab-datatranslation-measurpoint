@@ -2,16 +2,17 @@
 % do not execute as a whole!
 
 %% Initiate the instrument class
-mp = MEASURpoint();
+cIP = '192.168.0.3';
+mp = MEASURpoint(cIP);
 
 %% Connect the instrument through TCP/IP
 mp.connect();
 
 %% Ask the instument its id using SCPI standard queries
-mp.idn;
+mp.idn();
 
 %% Enable readout on protected channels
-mp.enable;
+mp.enable();
 
 %% read one channel
 channel = 3;
@@ -20,18 +21,6 @@ fprintf('temperature = %2.3f degree C\n',temp_C)
 
 %% Regular query
 a = mp.queryData('MEAS:TEMP:TC? DEF,(@3)',8);
-
-%% Ask the instrument its port configuration
-mp.CONF
-
-%% Ask the instrument which channels are configured
-mp.SYSTCHAN;
-
-%% Ask the instrument to measure voltage
-mp.MEASVOLT;
-
-%% Read a temperature on channel 2 (for debugging purpose)
-mp.MEASTEMP;
 
 %% Get all channel types (These cannot be set)
 [tc, rtd, volt] = mp.channelType();
@@ -68,7 +57,7 @@ temp_C = mp.measure_temperature_tc(channel, sensorType);
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
 %% Measure temperature on multiple channels (TC), with sensor type
-channel_list = 0:7;
+channel_list = 0:3;
 temp_C = mp.measure_temperature_tc(channel_list);
 fprintf('temperatures = ')
 fprintf('%2.3fC - ',temp_C)
@@ -92,7 +81,7 @@ fprintf('%2.3fC - ',temp_C)
 fprintf('\n')
 
 %% Measure voltage on one channel
-channel = 44;
+channel = 42;
 volt = mp.measure_voltage(channel);
 fprintf('voltage = %2.3f V\n', volt)
 
@@ -145,6 +134,7 @@ channel =3;
 dt_s = 0.1;
 N_pts = 100;
 mp.monitor_graph(channel, dt_s, N_pts);
-%%
+
 
 end
+

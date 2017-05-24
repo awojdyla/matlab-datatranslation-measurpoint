@@ -27,7 +27,7 @@ properties
     %http://www.datatranslation.eu/en/ethernet/24-bit-data-acquisition/
     %500v-isolation/data-logger-software,1355.html
     cIP = '192.168.127.100'; % SCPI connection string
-    niMP    % Matlab VISA object
+    comm   % tcpip || VISA object (see init())
     verbosity = 1; %1: show proper connection; 2: show all i/o's
 end
 
@@ -61,7 +61,11 @@ methods
         cSCPI_IP = sprintf('TCPIP::%s::INSTR',mp.cIP);
         
         % create a VISA object and store it as a property
-        mp.niMP = visa('ni', cSCPI_IP);
+        % mp.comm = visa('ni', cSCPI_IP);
+        mp.comm = tcpip(mp.cIP, 5025);
+        % Don't use Nagle's algorithm; send data
+        % immediately to the newtork
+        mp.comm.TransferDelay = 'off'; 
         
         if mp.verbosity>0
             disp('NI VISA object object initialized')
@@ -75,9 +79,9 @@ methods
     %
     % See also MEASURPOINT.CONNECT
     
-        if ~isempty(mp.niMP) 
+        if ~isempty(mp.comm) 
             %get the status of the VISA object (not the instrument itself!)
-            cStatus = mp.niMP.Status;
+            cStatus = mp.comm.Status;
             if nargout == 0 
                 fprintf('NI VISA Status : %s\n', cStatus);
             end
@@ -93,8 +97,8 @@ methods
     %
     % See also MEASURPOINT.ISCONNECTED, MEASURPOINT.DISCONNECT
     
-        fopen(mp.niMP);
-        fprintf('NI VISA connected to remote host %s\n', mp.niMP.propinfo.RemoteHost.DefaultValue)
+        fopen(mp.comm);
+        fprintf('Connected to remote host %s\n', mp.comm.propinfo.RemoteHost.DefaultValue)
     end
     
     function lIsConnected = isConnected(mp)
@@ -105,8 +109,8 @@ methods
     %   See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
     
         lIsConnected = false;
-        if ~isempty(mp.niMP)
-            lIsConnected = strcmp(mp.niMP.Status,'open');
+        if ~isempty(mp.comm)
+            lIsConnected = strcmp(mp.comm.Status,'open');
         else
             error('MEASURpoint not initialized')
         end
@@ -119,9 +123,9 @@ methods
     %
     %   See also MEASURPOINT.CONNECT
     
-        if ~isempty(mp.niMP)
-            fclose(mp.niMP);
-            fprintf('NI VISA disconnected\n')
+        if ~isempty(mp.comm)
+            fclose(mp.comm);
+            fprintf('Disconnected\n')
         end
     end
     
@@ -147,8 +151,9 @@ methods
     %          MEASURPOINT.IDN
     
         cAnswer = '';
-        cQuery = strcat(str_query,';');
-        if ~isempty(mp.niMP)
+       % cQuery = strcat(str_query,';');
+         cQuery = str_query;
+        if ~isempty(mp.comm)
             
             %print query (for debugging)
             if mp.verbosity>2
@@ -156,7 +161,18 @@ methods
             end
             
             % perform a visa query
-            cAnswer = query(mp.niMP,cQuery);
+            if ~isempty(strfind(cQuery, '?'))
+                % Expect an ascii answer in output buffer
+                cAnswer = query(mp.comm,cQuery);
+            else
+                % Do not expect an answer in the output buffer
+                fprintf(mp.comm, cQuery);
+            end
+            
+            %{
+            fprintf(mp.comm, cQuery);
+            cAnswer = fscanf(mp.comm);
+            %}
             
             %print answer
             if mp.verbosity>2
@@ -165,8 +181,8 @@ methods
             
             %if the answer is empty, but the query was expecting an answer,
             %find out what kind com error happened
-            if isempty(cAnswer) && contains(cQuery,'?')
-                err_msg = query(mp.niMP,'SYST:ERR?');
+            if isempty(cAnswer) && ~isempty(strfind(cQuery, '?'))
+                err_msg = query(mp.comm,'SYST:ERR?');
                 fprintf('error message : %s',err_msg)
             end
         else
@@ -200,7 +216,7 @@ methods
     
         cAnswer = '';
         cQuery = strcat(str_query,';');
-        if ~isempty(mp.niMP)
+        if ~isempty(mp.comm)
             
             %print query (for debugging)
             if mp.verbosity>2
@@ -209,10 +225,10 @@ methods
             
             % send the command 
             % (e.g. cQuery='MEAS:TEMP:TC? DEF,(@3)')
-            fprintf(mp.niMP, cQuery); 
+            fprintf(mp.comm, cQuery); 
             
             % read the data
-            bytes_dec = fread(mp.niMP,nbytes); 
+            bytes_dec = fread(mp.comm,nbytes); 
             % e.g.  [35;49;52;71;195;79;128;10]'
             
             if ~isempty(bytes_dec)
@@ -232,7 +248,7 @@ methods
                 % if the answer is empty, but the query was expecting an answer,
                 % find out what kind com error happened
             else
-                err_msg = query(mp.niMP,'SYST:ERR?');
+                err_msg = query(mp.comm,'SYST:ERR?');
                 fprintf('error message : %s',err_msg)
             end
         else
@@ -246,13 +262,13 @@ methods
     %
     % See also MEASURPOINT.ISCONNECTED, MEASURPOINT.QUERY, MEASURPOINT.ENABLE
     
-        cErr_msg = query(mp.niMP,'SYST:ERR?');
+        cErr_msg = query(mp.comm,'SYST:ERR?');
     end
     
     function lIsEnabled = enable(mp)
         
     %   See also MEASURPOINT.ISENABLED
-        query(mp.niMP,':SYST:PASS:CEN admin');
+        fprintf(mp.comm, ':SYST:PASS:CEN admin');
         lIsEnabled = mp.isEnabled;
         
         if mp.verbosity>0
@@ -270,7 +286,7 @@ methods
     %
     %   See also MEASURPOINT.ENABLE
     
-        sAnswer = query(mp.niMP,':SYSTem:PASSword:CENable:STATe?');
+        sAnswer = query(mp.comm,':SYSTem:PASSword:CENable:STATe?');
         lIsEnabled = logical(strtrim(sAnswer));
     end
     
@@ -281,7 +297,7 @@ methods
     %
     % See also MEASURPOINT.QUERY, MEASURPOINT.SYSTCHAN, MEASURPOINT.CONF
     
-        if ~isempty(mp.niMP) 
+        if ~isempty(mp.comm) 
             if mp.isConnected()
                 % perform the query
                 cIDN = mp.query('*IDN?');
@@ -388,6 +404,7 @@ methods
         
         % send out the query
         mp.query(str_query);
+        % fprintf(this.comm, str_query);
     end
     
     
@@ -435,7 +452,8 @@ methods
             % number of channels to be read
             nchannels = numel(channel_list);
             % number of bytes to read from the buffer
-            nbytes = 4 + nchannels*4;
+            
+            nbytes = mp.getNumOfExpectedBytes(nchannels);
             
             % prepare the channel list for the query
             cChannels = sprintf('%d,',channel_list);
@@ -501,7 +519,8 @@ methods
         % number of channels to be read
         nchannels = numel(channel_list);
         % number of bytes to read from the buffer
-        nbytes = 4 + nchannels*4;
+        
+        nbytes = mp.getNumOfExpectedBytes(nchannels);
         
         % prepare the channel list for the query
         cChannels = sprintf('%d,',channel_list);
@@ -555,7 +574,8 @@ methods
         % number of channels to be read
         nchannels = numel(channel_list);
         % number of bytes to read from the buffer
-        nbytes = 4 + nchannels*4;
+        
+        nbytes = mp.getNumOfExpectedBytes(nchannels);
         
         % prepare the channel list for the query
         cChannels = sprintf('%d,',channel_list);
@@ -609,7 +629,8 @@ methods
             % number of channels to be read
             nchannels = numel(channel_list);
             % number of bytes to read from the buffer
-            nbytes = 4 + nchannels*4;
+            
+            nbytes = mp.getNumOfExpectedBytes(nchannels);
             
             % prepare the channel list for the query
             cChannels = sprintf('%d,',channel_list);
@@ -905,6 +926,17 @@ end %methods
         function TF = ge(varargin)
             TF = ge@handle(varargin{:});
         end
+        
+        function nbytes = getNumOfExpectedBytes(mp, channels)
+            
+            numDataBytes = channels * 4;
+            nbytes = 1 + ... % header byte
+                1 + ... % this byte contains the number of bytes in the data length byte group
+                ceil(log10(numDataBytes)) + ... % one byte for each data decimal
+                numDataBytes + ...
+                1; % stop byte (terminator)
+        end
+        
    end
    
 end

@@ -8,7 +8,7 @@ addSrc();
 %% Initiate the instrument class
 
 cIP = '192.168.20.27';
-mp = datatranslation.MEASURpoint(cIP);
+mp = datatranslation.MeasurPoint(cIP);
 
 
 %% Connect the instrument through TCP/IP

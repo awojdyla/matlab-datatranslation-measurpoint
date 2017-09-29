@@ -5,7 +5,7 @@
 
 
 cIP = '192.168.0.3';
-mp = MEASURpoint(cIP);
+mp = datatranslation.MeasurPoint(cIP);
 
 %% Connect the instrument through TCP/IP
 mp.connect();

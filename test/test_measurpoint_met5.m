@@ -22,7 +22,7 @@ mp.enable();
 
 %% read one channel
 channel = 3;
-temp_C = mp.measure_temperature_tc(channel);
+temp_C = mp.measure_temperature_tc(channel)
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
 %% Regular query

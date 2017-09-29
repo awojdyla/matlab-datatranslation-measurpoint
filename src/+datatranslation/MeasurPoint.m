@@ -1,12 +1,12 @@
-classdef MEASURpoint < handle
-% Wrapper for Data Translation MEASURpoint 
+classdef MeasurPoint < handle
+% Wrapper for Data Translation MeasurPoint 
 % DT8874-8T-24R-16V,14171149,3.1.0.2
 %
 % It requires Instrument Control Box, to use NI VISA in order 
 % to communicate with SCPI via ethernet
 %
 %example of use :
-%   mp = MEASURpoint();         % create the object
+%   mp = MeasurPoint();         % create the object
 %   mp.connect();               % connect to the instrument
 %   mp.idn();                   % ask the instrument identity
 %   cAnswer     = mp.query('MEAS:VOLT? (@1)') % queries the instrument
@@ -33,10 +33,10 @@ end
 
 methods
     
-    function mp = MEASURpoint(varargin)
-    % MEASURpoint Class constrctor
-    %   mp = MEASURpoint() creates an object with default IP (see blow)
-    %   mp = MEASURpoint('192.168.127.100')
+    function mp = MeasurPoint(varargin)
+    % MeasurPoint Class constrctor
+    %   mp = MeasurPoint() creates an object with default IP (see blow)
+    %   mp = MeasurPoint('192.168.127.100')
     %       creates an object with the provided IP
     %
     % See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
@@ -86,7 +86,7 @@ methods
                 fprintf('NI VISA Status : %s\n', cStatus);
             end
         else
-            error('MEASURpoint not initialized')
+            error('MeasurPoint not initialized')
         end
     end
     
@@ -112,7 +112,7 @@ methods
         if ~isempty(mp.comm)
             lIsConnected = strcmp(mp.comm.Status,'open');
         else
-            error('MEASURpoint not initialized')
+            error('MeasurPoint not initialized')
         end
     end
     
@@ -186,7 +186,7 @@ methods
                 fprintf('error message : %s',err_msg)
             end
         else
-            error('MEASURpoint not initialized')
+            error('MeasurPoint not initialized')
         end
     end
     
@@ -252,7 +252,7 @@ methods
                 fprintf('error message : %s',err_msg)
             end
         else
-            error('MEASURpoint not initialized')
+            error('MeasurPoint not initialized')
         end
     end
     
@@ -304,10 +304,10 @@ methods
                 % trim the result
                 cIDN = strtrim(cIDN);
             else
-                error('MEASURpoint not connected')
+                error('MeasurPoint not connected')
             end
         else
-            error('MEASURpoint not initialized')
+            error('MeasurPoint not initialized')
         end
         
         if mp.verbosity>0
@@ -699,7 +699,7 @@ methods
     end
     
     function delete(mp)
-    %DELETE MEASURpoint class destructor
+    %DELETE MeasurPoint class destructor
     %(aside from it closes the TCP/IP connection properly)
     
         mp.disconnect();

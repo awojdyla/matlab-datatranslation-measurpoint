@@ -2,6 +2,8 @@
 % do not execute as a whole!
 
 %% Initiate the instrument class
+
+
 cIP = '192.168.0.3';
 mp = MEASURpoint(cIP);
 

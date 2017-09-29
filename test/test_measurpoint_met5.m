@@ -1,9 +1,15 @@
 %% Test script for MEASURpoint.m class
 % do not execute as a whole!
 
+%% Add src (function in this dir, navigate to this dir to run)
+
+addSrc();
+
 %% Initiate the instrument class
+
 cIP = '192.168.20.27';
-mp = MEASURpoint(cIP);
+mp = datatranslation.MEASURpoint(cIP);
+
 
 %% Connect the instrument through TCP/IP
 mp.connect();
@@ -33,6 +39,7 @@ fprintf('\n')
 channel = 3;
 sensorType = mp.getSensorType(channel);
 fprintf('Channel %d has a ''%s''-type sensor\n',channel,sensorType)
+
 %% Get multiple sensor types
 [~, rtd, ~] = mp.channelType(); % get all RTDs
 sensor_types = mp.getSensorType(rtd);
@@ -124,17 +131,20 @@ mp.get_error()
 
 %% 
 if false % so that the script can be "Run" all at once
-%% Continous reading on one channel, displayed in the command window
-channel = 3;
-dt_s = 0.3;
-mp.monitor_terminal(channel, dt_s);
+    %% Continous reading on one channel, displayed in the command window
+    channel = 3;
+    dt_s = 0.3;
+    mp.monitor_terminal(channel, dt_s);
 
-%% Continous reading on one channel, displayed as a graph
-channel =3;
-dt_s = 0.1;
-N_pts = 100;
-mp.monitor_graph(channel, dt_s, N_pts);
+    %% Continous reading on one channel, displayed as a graph
+    channel =3;
+    dt_s = 0.1;
+    N_pts = 100;
+    mp.monitor_graph(channel, dt_s, N_pts);
 
 
 end
+
+%% Disconnect
+mp.disconnect();
 

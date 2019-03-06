@@ -1,4 +1,4 @@
-classdef MeasurPoint < handle
+classdef MeasurPoint < datatranslation.AbstractMeasurPoint
 % Wrapper for Data Translation MeasurPoint 
 % DT8874-8T-24R-16V,14171149,3.1.0.2
 %
@@ -228,6 +228,7 @@ methods
             fprintf(mp.comm, cQuery); 
             
             % read the data
+            
             bytes_dec = fread(mp.comm,nbytes); 
             % e.g.  [35;49;52;71;195;79;128;10]'
             
@@ -534,7 +535,7 @@ methods
         % unpack the result
         [cDataBitstring_cell, ndata, block_length] = mp.unpack(cDataBytestring);
         
-        % Convert the data and parse it to each channel
+        % Convert the data and parse it to each channeln
         
         aTemp_degC = zeros(1,length(channel_list));
         for i_chan = 1:length(channel_list) % parse

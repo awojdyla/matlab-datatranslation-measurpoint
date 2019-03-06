@@ -1,6 +1,6 @@
-%% Test script for MEASURpoint.m class
-% do not execute as a whole!
 
+
+d = randn(size(channel_list)) + 5;
 %% Initiate the instrument class
 
 

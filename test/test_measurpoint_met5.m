@@ -25,6 +25,13 @@ channel = 3;
 temp_C = mp.measure_temperature_tc(channel)
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
+
+%% read one channel
+channel = 24;
+temp_C = mp.measure_temperature_rtd(channel)
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+
 %% Regular query
 a = mp.queryData('MEAS:TEMP:TC? DEF,(@3)',8)
 
@@ -39,6 +46,9 @@ fprintf('\n')
 channel = 3;
 sensorType = mp.getSensorType(channel);
 fprintf('Channel %d has a ''%s''-type sensor\n',channel,sensorType)
+
+%% Get all sensor types
+mp.getSensorType()
 
 %% Get multiple sensor types
 [~, rtd, ~] = mp.channelType(); % get all RTDs
@@ -75,14 +85,19 @@ channel = 9;
 temp_C = mp.measure_temperature_rtd(channel);
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
+%% Measure temperature on a specific channel (RTD)
+channel = 24;
+temp_C = mp.measure_temperature_rtd(channel);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
 %% Measure temperature on a specific channel (RTD), with sensor type
 channel = 9;
 temp_C = mp.measure_temperature_rtd(channel,'PT100');
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
 %% Measure temperature on a multiple channel (RTD), with sensor type
-channel_list = 9:12;
-temp_C = mp.measure_temperature_rtd(channel_list,'PT100');
+channel_list = 8:31;
+temp_C = mp.measure_temperature_rtd(channel_list,'PT100')
 fprintf('temperatures = ')
 fprintf('%2.3fC - ',temp_C)
 fprintf('\n')
@@ -100,7 +115,7 @@ fprintf('%2.1eV  -  ', volt)
 fprintf('\n')
 
 %% Measure on mixed channels
-channel_list = floor(rand(1,10)*48);
+channel_list = 0 : 47; % channels are zero-indexed, 48 channels
 [readings, channel_map] = mp.measure_multi(channel_list);
 fprintf('channel : ')
 fprintf('%06.0f ',channel_map)

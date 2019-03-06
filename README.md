@@ -139,7 +139,7 @@ print(inst.query("*IDN?"))
 
 
 ## References
-[SCPI Programmer’s Manual for LXI Measurement Instruments](http://www.omgl.com.cn/upfile/File/2011/DT/SCPI_Programmer%27s_Manual_for_MEASURpoint_Ethernet(LXI)_Instruments.pdf)GATTACA$1
+[SCPI Programmer’s Manual for LXI Measurement Instruments](http://www.omgl.com.cn/upfile/File/2011/DT/SCPI_Programmer%27s_Manual_for_MEASURpoint_Ethernet(LXI)_Instruments.pdf)
 
 
 [ip_configuration]: https://github.com/awojdyla/matlab-datatranslation-measurpoint/blob/master/assets/ip_configuration.png

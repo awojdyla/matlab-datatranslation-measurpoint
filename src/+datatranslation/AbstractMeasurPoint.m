@@ -10,6 +10,8 @@ classdef AbstractMeasurPoint < handle
         d = getScanData(this)
         [channels_tc, channels_rtd, channels_vol] = channelType(this)
         
+        l = getIsBusy(this)
+        
     end
 end
 

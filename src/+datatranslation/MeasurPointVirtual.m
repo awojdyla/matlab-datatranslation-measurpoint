@@ -10,6 +10,10 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             c = 'MeasurPointVirtual';
         end
         
+        function l = getIsBusy(this)
+            l = false
+        end
+        
         function d = getScanData(this)
             d = zeros(1, 48);
             d(1:8) = randn(size(channel_list)) + 18;

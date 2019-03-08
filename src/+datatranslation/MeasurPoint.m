@@ -31,23 +31,35 @@ properties
     verbosity = 2; %1: show proper connection; 2: show all i/o's
 end
 
+properties (Access = private)
+    
+     % {logical 1x1} true whend doing a long read. Causes other read
+        % commands to not communicate with hardware and return bogus value
+    lIsBusy = false
+    
+end
+
 methods
     
     function this = MeasurPoint(varargin)
-    % MeasurPoint Class constrctor
-    %   this = MeasurPoint() creates an object with default IP (see blow)
-    %   this = MeasurPoint('192.168.127.100')
-    %       creates an object with the provided IP
-    %
-    % See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
-    
-    % populate the IP adress
-    if nargin==1
-        this.cIP = varargin{1};
+        % MeasurPoint Class constrctor
+        %   this = MeasurPoint() creates an object with default IP (see blow)
+        %   this = MeasurPoint('192.168.127.100')
+        %       creates an object with the provided IP
+        %
+        % See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
+
+        % populate the IP adress
+        if nargin==1
+            this.cIP = varargin{1};
+        end
+
+        % initialise the class
+        this.init();
     end
     
-    % initialise the class
-    this.init();
+    function l = getIsBusy(this)
+        l = this.lIsBusy;
     end
     
     function init(this)
@@ -74,6 +86,8 @@ methods
     
     % Reads all available bytes from the input buffer
     function clearBytesAvailable(this)
+       
+        this.lIsBusy = true;
         while this.comm.BytesAvailable > 0
             cMsg = sprintf(...
                 'clearBytesAvailable() clearing %1.0f bytes\n', ...
@@ -82,6 +96,7 @@ methods
             fprintf(cMsg);
             bytes = fread(this.comm, this.comm.BytesAvailable);
         end
+        this.lIsBusy = false;
     end
     
     function cStatus = status(this)
@@ -632,9 +647,13 @@ methods
     % abortScan
     function result = getScanData(this)
         
+        this.lIsBusy = true;
+        
         fprintf(this.comm, 'FETCH? 1, 1'); 
         dBytes = this.getNumOfExpectedBytesInScanRecord();
         bytes_dec = fread(this.comm, dBytes);
+        
+        this.lIsBusy = false;
         
         % BYTE 1 - {ASCII} #
         % BYTE 2 - {ASCII} is a character 1-9, which is the number

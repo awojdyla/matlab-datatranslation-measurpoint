@@ -3,7 +3,10 @@
 
 %% Add src (function in this dir, navigate to this dir to run)
 
-addSrc();
+[cDirThis, ~, ~] = fileparts(mfilename('fullpath'));
+cDirSrc = fullfile(cDirThis, '..', 'src');
+addpath(genpath(cDirSrc));
+
 
 %% Initiate the instrument class
 
@@ -20,6 +23,15 @@ mp.idn();
 %% Enable readout on protected channels
 mp.enable();
 
+%% Configure all channels for scan list (internal fast scan with circular memory buffer)
+mp.configureScanListAll()
+
+%% Start scan
+mp.initiateScan();
+
+%% Read all values from the scan buffer
+results = mp.getScanData()
+
 %% read one channel
 channel = 3;
 temp_C = mp.measure_temperature_tc(channel)
@@ -30,6 +42,20 @@ fprintf('temperature = %2.3f degree C\n',temp_C)
 channel = 24;
 temp_C = mp.measure_temperature_rtd(channel)
 fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on a specific channel (TC), with sensor type J
+channels = 0 : 7;
+sensorType = 'J';
+temp_C = mp.measure_temperature_tc(channels, sensorType);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on multiple channels (TC), with sensor type
+channels = 8 : 15;
+temp_C = mp.measure_temperature_rtd(channels, 'PT1000');
+fprintf('temperatures = ')
+fprintf('%2.3fC - ',temp_C)
+fprintf('\n')
+
 
 
 %% Regular query
@@ -67,18 +93,6 @@ channel = 3;
 temp_C = mp.measure_temperature_tc(channel);
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
-%% Measure temperature on a specific channel (TC), with sensor type
-channel = 3;
-sensorType = 'J';
-temp_C = mp.measure_temperature_tc(channel, sensorType);
-fprintf('temperature = %2.3f degree C\n',temp_C)
-
-%% Measure temperature on multiple channels (TC), with sensor type
-channel_list = 0:3;
-temp_C = mp.measure_temperature_tc(channel_list);
-fprintf('temperatures = ')
-fprintf('%2.3fC - ',temp_C)
-fprintf('\n')
 
 %% Measure temperature on a specific channel (RTD)
 channel = 9;
@@ -160,6 +174,42 @@ if false % so that the script can be "Run" all at once
 
 end
 
+%%
+
+channels = 0 : 7;
+for n = channels
+   mp.setSensorType(n, 'J');
+end
+
+channels = 8 : 15;
+for n = channels
+    mp.setSensorType(n, 'PT1000');
+end
+
+ channels = 16 : 19;
+for n = channels
+    mp.setSensorType(n, 'PT100');
+end
+
+channels = 20 : 23;
+for n = channels
+   mp.setSensorType(n, 'PT1000');
+end
+
+channels = 24 : 31;
+for n = channels
+    mp.setSensorType(n, 'PT100');
+end
+
+channels = 32 : 47;
+for n = channels
+    mp.setSensorType(n, 'V');
+end
+
+
+
 %% Disconnect
 mp.disconnect();
+
+
 

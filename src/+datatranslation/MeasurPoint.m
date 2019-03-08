@@ -6,11 +6,11 @@ classdef MeasurPoint < datatranslation.AbstractMeasurPoint
 % to communicate with SCPI via ethernet
 %
 %example of use :
-%   mp = MeasurPoint();         % create the object
-%   mp.connect();               % connect to the instrument
-%   mp.idn();                   % ask the instrument identity
-%   cAnswer     = mp.query('MEAS:VOLT? (@1)') % queries the instrument
-%   dTemp_degC  = mp.measure_temperature_tc(2);  % measure temperature on ch2
+%   this = MeasurPoint();         % create the object
+%   this.connect();               % connect to the instrument
+%   this.idn();                   % ask the instrument identity
+%   cAnswer     = this.query('MEAS:VOLT? (@1)') % queries the instrument
+%   dTemp_degC  = this.measure_temperature_tc(2);  % measure temperature on ch2
 
 % awojdyla@lbl.gov
 % April 2017
@@ -28,60 +28,72 @@ properties
     %500v-isolation/data-logger-software,1355.html
     cIP = '192.168.127.100'; % SCPI connection string
     comm   % tcpip || VISA object (see init())
-    verbosity = 1; %1: show proper connection; 2: show all i/o's
+    verbosity = 2; %1: show proper connection; 2: show all i/o's
 end
 
 methods
     
-    function mp = MeasurPoint(varargin)
+    function this = MeasurPoint(varargin)
     % MeasurPoint Class constrctor
-    %   mp = MeasurPoint() creates an object with default IP (see blow)
-    %   mp = MeasurPoint('192.168.127.100')
+    %   this = MeasurPoint() creates an object with default IP (see blow)
+    %   this = MeasurPoint('192.168.127.100')
     %       creates an object with the provided IP
     %
     % See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
     
     % populate the IP adress
     if nargin==1
-        mp.cIP = varargin{1};
+        this.cIP = varargin{1};
     end
     
     % initialise the class
-    mp.init();
+    this.init();
     end
     
-    function init(mp)
+    function init(this)
     %INIT Initializes the VISA object
     %(this function is called by the constructor of the class)
-    %   mp.init()
+    %   this.init()
     %
     % See also MEASURPOINT.STATUS, MEASURPOINT.CONNECT
     
         % SCPI connection string
-        cSCPI_IP = sprintf('TCPIP::%s::INSTR',mp.cIP);
+        cSCPI_IP = sprintf('TCPIP::%s::INSTR',this.cIP);
         
         % create a VISA object and store it as a property
-        % mp.comm = visa('ni', cSCPI_IP);
-        mp.comm = tcpip(mp.cIP, 5025);
+        % this.comm = visa('ni', cSCPI_IP);
+        this.comm = tcpip(this.cIP, 5025);
         % Don't use Nagle's algorithm; send data
         % immediately to the newtork
-        mp.comm.TransferDelay = 'off'; 
+        this.comm.TransferDelay = 'off'; 
         
-        if mp.verbosity>0
+        if this.verbosity>0
             disp('NI VISA object object initialized')
         end
     end
     
-    function cStatus = status(mp)
+    % Reads all available bytes from the input buffer
+    function clearBytesAvailable(this)
+        while this.comm.BytesAvailable > 0
+            cMsg = sprintf(...
+                'clearBytesAvailable() clearing %1.0f bytes\n', ...
+                this.comm.BytesAvailable ...
+            );
+            fprintf(cMsg);
+            bytes = fread(this.comm, this.comm.BytesAvailable);
+        end
+    end
+    
+    function cStatus = status(this)
     %STATUS gets the status of the VISA object
     %(this doesn't tell you if the device is connected)
-    %   status = mp.status() returns true if the VISA object is valid
+    %   status = this.status() returns true if the VISA object is valid
     %
     % See also MEASURPOINT.CONNECT
     
-        if ~isempty(mp.comm) 
+        if ~isempty(this.comm) 
             %get the status of the VISA object (not the instrument itself!)
-            cStatus = mp.comm.Status;
+            cStatus = this.comm.Status;
             if nargout == 0 
                 fprintf('NI VISA Status : %s\n', cStatus);
             end
@@ -90,62 +102,62 @@ methods
         end
     end
     
-    function connect(mp)
+    function connect(this)
     %CONNECT Connects the VISA object to the instrument
     %(required for any query!)
-    %   mp.connect()
+    %   this.connect()
     %
     % See also MEASURPOINT.ISCONNECTED, MEASURPOINT.DISCONNECT
     
-        fopen(mp.comm);
-        fprintf('Connected to remote host %s\n', mp.comm.propinfo.RemoteHost.DefaultValue)
+        fopen(this.comm);
+        fprintf('Connected to remote host %s\n', this.comm.propinfo.RemoteHost.DefaultValue)
     end
     
-    function lIsConnected = isConnected(mp)
+    function lIsConnected = isConnected(this)
     %ISCONNECTED Checks whether the communication the device is established
-    %   isconnected = mp.isConnected() returns 'true' if the device is
+    %   isconnected = this.isConnected() returns 'true' if the device is
     %   available for queries
     %
     %   See also MEASURPOINT.CONNECT, MEASURPOINT.QUERY
     
         lIsConnected = false;
-        if ~isempty(mp.comm)
-            lIsConnected = strcmp(mp.comm.Status,'open');
+        if ~isempty(this.comm)
+            lIsConnected = strcmp(this.comm.Status,'open');
         else
             error('MeasurPoint not initialized')
         end
     end
     
-    function disconnect(mp)
+    function disconnect(this)
     %DISCONNECT Disconnects the device
     %(this function is called by the destructor)
-    %   mp.disconnect()
+    %   this.disconnect()
     %
     %   See also MEASURPOINT.CONNECT
     
-        if ~isempty(mp.comm)
-            fclose(mp.comm);
+        if ~isempty(this.comm)
+            fclose(this.comm);
             fprintf('Disconnected\n')
         end
     end
     
-    function cAnswer = query(mp, str_query)
+    function cAnswer = query(this, str_query)
     %QUERY Performs a query of the instrument, to set or get a parameter
     %   cAnswer = query(str_query)
     %
     % example:
-    %   cChan = mp.query('SYST:CHAN?')
+    %   cChan = this.query('SYST:CHAN?')
     %
     %
     % 
-    % NOTE: if you are dealing with data, avoid using mp.query, as 
-    % mp.query('MEAS:VOLT? (@2)') should return a string with encoded
-    % values, but missing elements; use mp.queryData instread
+    % NOTE: if you are dealing with data, avoid using this.query, as 
+    % this.query('MEAS:VOLT? (@2)') should return a string with encoded
+    % values, but missing elements; use this.queryData instread
     %
     % BE CAREFUL! Measurement of values can be password protected; 
-    % make sure the readings are enabled (mp.enable())
-    % use mp.idn() to make sure there is actual communication with the inst
-    % use mp.get_error() to troubleshoot message-forming error
+    % make sure the readings are enabled (this.enable())
+    % use this.idn() to make sure there is actual communication with the inst
+    % use this.get_error() to troubleshoot message-forming error
     %
     % See also MEASUREPOINT.QUERYDATA, MEASURPOINT.ENABLE, MEASURPOINT.GET_ERROR, 
     %          MEASURPOINT.IDN
@@ -153,36 +165,26 @@ methods
         cAnswer = '';
        % cQuery = strcat(str_query,';');
          cQuery = str_query;
-        if ~isempty(mp.comm)
+        if ~isempty(this.comm)
             
             %print query (for debugging)
-            if mp.verbosity>2
-                fprintf('SCPI query: "%s"\n',cQuery)
+            if this.verbosity > 1
+                fprintf('query() "%s"\n',cQuery)
             end
             
             % perform a visa query
             if ~isempty(strfind(cQuery, '?'))
                 % Expect an ascii answer in output buffer
-                cAnswer = query(mp.comm,cQuery);
+                cAnswer = query(this.comm,cQuery);
             else
                 % Do not expect an answer in the output buffer
-                fprintf(mp.comm, cQuery);
+                fprintf(this.comm, cQuery);
             end
-            
-            %{
-            fprintf(mp.comm, cQuery);
-            cAnswer = fscanf(mp.comm);
-            %}
-            
-            %print answer
-            if mp.verbosity>2
-                fprintf('SCPI answer: "%s"\n',cAnswer)
-            end
-            
+                        
             %if the answer is empty, but the query was expecting an answer,
             %find out what kind com error happened
             if isempty(cAnswer) && ~isempty(strfind(cQuery, '?'))
-                err_msg = query(mp.comm,'SYST:ERR?');
+                err_msg = query(this.comm,'SYST:ERR?');
                 fprintf('error message : %s',err_msg)
             end
         else
@@ -190,25 +192,25 @@ methods
         end
     end
     
-    function bytestring = queryData(mp, str_query, nbytes)
+    function bytestring = queryData(this, str_query, nbytes)
     %QUERYDATA Performs a low-level query of the instrument
     % This is important when handling with data, because otherwise Matlab
     % cast it as a results, sometime trimming it -- making the reading
     % unreliable.
     %   
-    %   cAnswer = mp.queryData(str_query,nbytes)
+    %   cAnswer = this.queryData(str_query,nbytes)
     %   with str_query a SCPI query string, 
     %        nbytes the number of bytes expected (usually 4, +4 per channel)
     %        cAnswer is a bytestring (pairs of hexadecimal values)
     %
     % example:
-    %   cChan = mp.queryData('MEAS:TEMP:TC? DEF,(@3)',8)
+    %   cChan = this.queryData('MEAS:TEMP:TC? DEF,(@3)',8)
     %   >> cChan = '23313447C34F800A'
     %   
     % BE CAREFUL! Measurement of values can be password protected; 
-    % make sure the readings are enabled (mp.enable())
+    % make sure the readings are enabled (this.enable())
     %
-    % use mp.get_error() to troubleshoot message-forming error
+    % use this.get_error() to troubleshoot message-forming error
     %
     % See also MEASURPOINT.QUERY, MEASUREPOINT.UNPACK, MEASURPOINT.CONVERTIEEE_754,
     %          MEASUREPOINT.MEASURE_TEMPERATURE, MEASUREPOINT.MEASURE_VOLTAGE
@@ -216,20 +218,36 @@ methods
     
         cAnswer = '';
         cQuery = strcat(str_query,';');
-        if ~isempty(mp.comm)
+        if ~isempty(this.comm)
             
             %print query (for debugging)
-            if mp.verbosity>2
-                fprintf('SCPI query: "%s"\n',cQuery)
+            if this.verbosity > 1
+                fprintf('queryData() query = "%s" bytes expected = %1.0f \n',cQuery, nbytes)
             end
             
             % send the command 
             % (e.g. cQuery='MEAS:TEMP:TC? DEF,(@3)')
-            fprintf(mp.comm, cQuery); 
             
-            % read the data
+            dTimeStart = tic;
+            fprintf(this.comm, cQuery); 
+            dTimeWrite = toc(dTimeStart);
             
-            bytes_dec = fread(mp.comm,nbytes); 
+            % read the data (fread waits for nbytes to accumulate in the
+            % output buffer)
+            
+            bytes_dec = fread(this.comm,nbytes)
+            char(bytes_dec)
+            dTimeRead = toc(dTimeStart);
+            
+            if this.verbosity > 1
+                cMsg = [...
+                    'quertyData(): ', ...
+                    sprintf('time of write: %1.1f ms; ', dTimeWrite * 1000), ...
+                    sprintf('time of write + read: %1.1f ms \n', dTimeRead * 1000) ...
+                ];
+                fprintf(cMsg);
+            end
+                
             % e.g.  [35;49;52;71;195;79;128;10]'
             
             if ~isempty(bytes_dec)
@@ -240,40 +258,36 @@ methods
                 % reshape the bytes into a bytstring
                 bytestring = reshape(bytes',1,2*size(bytes_dec,1));
                 % e.g. bytestring = '23313447C34F800A'
-                
-                %print answer
-                if mp.verbosity>2
-                    fprintf('SCPI answer: "%s"\n',cAnswer)
-                end
-                
+                                
                 % if the answer is empty, but the query was expecting an answer,
                 % find out what kind com error happened
             else
-                err_msg = query(mp.comm,'SYST:ERR?');
+                err_msg = query(this.comm,'SYST:ERR?');
                 fprintf('error message : %s',err_msg)
             end
         else
             error('MeasurPoint not initialized')
         end
+        
     end
     
-    function cErr_msg = get_error(mp)
+    function cErr_msg = get_error(this)
     %GET_ERROR Get the in the error log
-    %   cErr_msg = mp.get_error()
+    %   cErr_msg = this.get_error()
     %
     % See also MEASURPOINT.ISCONNECTED, MEASURPOINT.QUERY, MEASURPOINT.ENABLE
     
-        cErr_msg = query(mp.comm,'SYST:ERR?');
+        cErr_msg = query(this.comm,'SYST:ERR?');
     end
     
-    function lIsEnabled = enable(mp)
+    function lIsEnabled = enable(this)
         
     %   See also MEASURPOINT.ISENABLED
-        fprintf(mp.comm, ':SYST:PASS:CEN admin');
-        lIsEnabled = mp.isEnabled;
+        fprintf(this.comm, ':SYST:PASS:CEN admin');
+        lIsEnabled = this.isEnabled;
         
-        if mp.verbosity>0
-            if mp.isEnabled
+        if this.verbosity>0
+            if this.isEnabled
                 fprintf('device enabled\n')
             else
                 fprintf('device not enabled\n')
@@ -281,27 +295,27 @@ methods
         end
     end
     
-    function lIsEnabled = isEnabled(mp)
+    function lIsEnabled = isEnabled(this)
     %ISENABLED lets you know whether measurements are password protected
-    %   mp.isEnabled
+    %   this.isEnabled
     %
     %   See also MEASURPOINT.ENABLE
     
-        sAnswer = query(mp.comm,':SYSTem:PASSword:CENable:STATe?');
+        sAnswer = query(this.comm,':SYSTem:PASSword:CENable:STATe?');
         lIsEnabled = logical(strtrim(sAnswer));
     end
     
-    function cIDN = idn(mp)
+    function cIDN = idn(this)
     %IDN Standard SCPI '*IDN?' query, to test proper communication
-    %   cIDN = mp.idn() returns the ID string, e.g.
+    %   cIDN = this.idn() returns the ID string, e.g.
     %   >>'Data Translation,DT8874-8T-24R-16V,14171149,3.1.0.2'
     %
     % See also MEASURPOINT.QUERY, MEASURPOINT.SYSTCHAN, MEASURPOINT.CONF
     
-        if ~isempty(mp.comm) 
-            if mp.isConnected()
+        if ~isempty(this.comm) 
+            if this.isConnected()
                 % perform the query
-                cIDN = mp.query('*IDN?');
+                cIDN = this.query('*IDN?');
                 % trim the result
                 cIDN = strtrim(cIDN);
             else
@@ -311,45 +325,133 @@ methods
             error('MeasurPoint not initialized')
         end
         
-        if mp.verbosity>0
+        if this.verbosity>0
             fprintf('device *IDN: %s\n',cIDN)
         end
     end
     
-    function cChan = SYSTCHAN(mp)
+    function cChan = SYSTCHAN(this)
     %SYSTCHAN Lists available channels
-    %   cChan = mp.SYSTCHAN()
+    %   cChan = this.SYSTCHAN()
     %
     % See also MEASURPOINT.QUERY, MEASURPOINT.CONF, MEASURPOINT.IDN
     
         % Perform the query
-        cChan = mp.query('SYST:CHAN?');
+        cChan = this.query('SYST:CHAN?');
         % trim the result
         cChan = strtrim(cChan);
     end
     
-    function cConf = CONF(mp)
+    function cConf = CONF(this)
     % CONF Lists available channels
-    %   cChan = mp.CONF()
+    %   cChan = this.CONF()
     %
     % See also MEASURPOINT.QUERY, MEASURPOINT.CONF, MEASURPOINT.IDN
     
         % Perform the query
-        cConf = mp.query('CONF?');
+        cConf = this.query('CONF?');
         % trim the result
         cConf = strtrim(cConf);
         
     end
     
+    % Enables a list of channels to scan on the instrument.
+    % {u8 1xm} channels - a list of channels to have the hardware scan
+    % and store in internal buffer for fast retrieval
+    function setScanList(this, u8Channels)
+        
+        cList = sprintf('%u,', u8Channels);
+        cList = cList(1:end - 1); % remove final comma
+        cQuery = sprintf(':CONF:SCA:LIS (@%s)', cList);
+        this.query(cQuery);
+    end
     
-    function caSensor_type = getSensorType(mp, channel_list)
+    function setScanListAll(this)
+        this.setScanList(0:47);
+    end
+    
+    % Returns the size of the circular buffer, in bytes, that is used to store scan data.
+    function c = getSizeOfScanBuffer(this)
+        c = this.query('CONF:SCA:BUF?');
+    end
+    
+    % Sets the size of the circular buffer in bytes.  Need 4 bytes per
+    % channel, per scan.
+    % E.g. if the buffer should only be large enough for one scan, 
+    % and the scan list is set to channels 0 : 47, the size of the 
+    % circular buffer should be 4 * 48;
+    function setSizeOfScanBuffer(this, u32Bytes)
+        cCmd = sprintf('CONF:SCA:BUF %d', u32Bytes);
+    end
+    
+    % Configures the trigger source that starts the analog input operation
+    % on the instrument once the INITiate command is executed.
+    % Sets it to the default which is IMMEDIATE, meaning that as soon as
+    % INIT is sent, the scan begins
+    function setScanTriggerSourceToDefault(this)
+        cCmd = 'CONF:TRIG:SOUR IMM';
+        this.query(cCmd);
+    end
+    
+    % Returns the currently configured trigger source that starts the
+    % analog input operation on the instrument once the INITiate command is
+    % executed.
+    function c = getScanTriggerSource(this)
+        c = this.query('CONF:TRIG:SOUR?');
+    end
+    
+    % Configures either the time period of each scan, in the number of seconds per scan
+    function setScanPeriod(this, dSeconds)
+       cCmd = sprintf('CONF:SCA:RAT %1.1f', dSeconds);
+       this.query(cCmd);
+    end
+    
+    % Initiates a continuous scan operation on a instrument using the
+    % configured channels, scan list, scan rate, and trigger source.
+    function initiateScan(this)
+        this.query(':INIT');
+    end
+    
+    % Stops a continuous scan operation on the instrument, if it is in progress.
+    function abortScan(this)
+        this.query('ABOR');
+    end
+    
+    
+    % Returns the scan period in seconds
+    function c = getScanRate(this)
+        c = this.query('CONF:SCA:RAT?');
+    end
+    
+    % Returns the minimum scan period in seconds (0.1)
+    function c = getScanRateMinimum(this)
+        c = this.query('SYST:SCA:RAT:MIN?');
+    end
+    
+    % Returns the maximum scan period in seconds (unknown)
+    function c = getScanRateMaximum(this)
+        c = this.query('SYST:SCA:RAT:MAX?');
+    end
+    
+    % Returns the list of channels that are enabled for scanning on the instrument.
+    function c = getScanList(this)
+        cQuery = 'CONF:SCA:LIS?';
+        c = this.query(cQuery);
+    end
+    
+    
+    function c = getOperationStatus(this)
+        c = this.query('STAT:OPER?');
+    end
+    
+    function caSensor_type = getSensorType(this, channel_list)
     %GETSENSORTYPE Returns the channel sensor type (TC or RTD with type, or voltage)
     %  for one, multiple or all channels
     % 
-    %   sensor_type = mp.getChannelType(channel) 
+    %   sensor_type = this.getChannelType(channel) 
     %       returns the type of the desired channel list (cell strings)
     %
-    % e.g. sensor_type = mp.getChannelType(3) returns 'V'
+    % e.g. sensor_type = this.getChannelType(3) returns 'V'
     %
     % See also MEASUREPOINT.SETSENSORTYPE, MEASUREPOINT.CHANNELTYPE
     %          MEASUREPOINT.MEASURE_TEMPERATURE, MEASUREPOINT.MEASURE_VOLTAGE
@@ -369,7 +471,7 @@ methods
         cQuery = ':CONF?';
     end
         
-        cSensor_type = mp.query(cQuery);
+        cSensor_type = this.query(cQuery);
         % returns 'V,E,V,J,V,J...'
         caSensor_type = strsplit(strtrim(cSensor_type),',');
         % returns a (cell) array of strings
@@ -379,10 +481,21 @@ methods
         end
     end
     
-    function setSensorType(mp, channel, sensor_type)
+    
+    % Configures specified analog input channels on the instrument for resistance measurements.
+    % Configures specified analog input channels on the instrument for RTD temperature measurements.
+    % Configures specified analog input channels on the instrument for thermocouple temperature measurements using the specified thermocouple type.
+    % Configures specified analog input channels on the instrument for voltage measurements.
+    % In a mix-and-match configuration, it is easy to accidentally mismatch
+    % the software and hardware configuration for a channel. Therefore, it
+    % is recommended that you pay particular attention when configuring
+    % channels, since the resultant errors may be not large enough to
+    % notice initially, but may be significantly larger than the accuracy
+    % specification for the instrument.
+    function setSensorType(this, channel, sensor_type)
     %SETSENSORTYPE Sets the channel type (TC or RTD with type, or voltage)
     % 
-    %   mp.setChannelType(channel, type) 
+    %   this.setChannelType(channel, type) 
     %       changes the destired channel to the desired type
     %
     %   Supported types for TC   channels (O:7) are {'J','K','B','E','N','R','S','T'}
@@ -394,30 +507,51 @@ methods
     %          MEASUREPOINT.MEASURE_TEMPERATURE, MEASUREPOINT.MEASURE_VOLTAGE
     
         switch sensor_type 
-            case {'J','K','B','E','N','R','S','T'}
+            case {...
+                'J',...
+                'K',...
+                'B',...
+                'E',...
+                'N',...
+                'R',...
+                'S',...
+                'T' ...
+            }
                 str_query = sprintf(':CONF:TEMP:TC %s, (@%d)',sensor_type,channel);
-            case {'PT100','PT500','PT1000','A_PT100','A_PT500','A_PT1000','PT100_3',...
-                  'PT500_3','PT1000_3','A_PT100_3','A_PT500_3','A_PT1000_3'}
+            case {...
+                'PT100',...
+                'PT500',...
+                'PT1000',...
+                'A_PT100',...
+                'A_PT500',...
+                'A_PT1000',...
+                'PT100_3',...
+                'PT500_3',...
+                'PT1000_3',...
+                'A_PT100_3',...
+                'A_PT500_3',...
+                'A_PT1000_3' ...
+              }
               str_query = sprintf(':CONF:TEMP:RTD %s, (@%d)',sensor_type,channel);
             case 'V'
                 str_query = sprintf(':CONF:VOLT (@%d)',channel);
         end
         
         % send out the query
-        mp.query(str_query);
+        this.query(str_query);
         % fprintf(this.comm, str_query);
     end
     
     
-    function dget = get(mp)
+    function dget = get(this)
         dget = -1;
     end
     
-    function set(mp, value)
+    function set(this, value)
         
     end
     
-    function aTemp_degC = measure_temperature_tc(mp, channel_list, channel_type)
+    function aTemp_degC = measure_temperature_tc(this, channel_list, channel_type)
     %MEASURE_TEMPERATURE Measure the temperature one or multiple channels
     %
     %   dTemp_degC = measure_temperature_tc(channel_list) measures the temperature
@@ -426,14 +560,14 @@ methods
     %   dTemp_degC = measure_temperature_tc(channel_list, channel_type)
     %       allows you specify the channel_type (e.g. E-type thermocouple)
     %
-    %  e.g. : mp.measure_temperature_tc([2,4:6], 'K') returns the temperature
+    %  e.g. : this.measure_temperature_tc([2,4:6], 'K') returns the temperature
     %  readings from channels 2,4,5 and 6, and set their type as 'K'
     %
     % Note that channels 0-7 are thermocouple and ch 8-47 are RTDs
     %
     % If no channel type is given, channel type will be set as default ('J')
     % If multiple channels are read at once, they must have the same type,
-    % otherwise please use mp.measure_multi()
+    % otherwise please use this.measure_multi()
     % 
     %   See also MEASURPOINT.MEASURE_VOLTAGE, MEASURPOINT.MEASURE_MULTI,
     %       	 MEASURPOINT.CHANNELTYPE, MEASURPOINT.GETSENSORTYPE
@@ -454,7 +588,7 @@ methods
             nchannels = numel(channel_list);
             % number of bytes to read from the buffer
             
-            nbytes = mp.getNumOfExpectedBytes(nchannels);
+            nbytes = this.getNumOfExpectedBytes(nchannels);
             
             % prepare the channel list for the query
             cChannels = sprintf('%d,',channel_list);
@@ -464,16 +598,16 @@ methods
             sQuery = sprintf('MEAS:TEMP:TC? %s,(@%s)', channel_type, cChannels);
             
             % send the query
-            cDataBytestring = mp.queryData(sQuery,nbytes);
+            cDataBytestring = this.queryData(sQuery,nbytes);
             % unpack the result
-            [cDataBitstring_cell, ndata, block_length] = mp.unpack(cDataBytestring);
+            [cDataBitstring_cell, ndata, block_length] = this.unpack(cDataBytestring);
             
             % Convert the data and parse it to each channel
             
             aTemp_degC = zeros(1,length(channel_list));
             for i_chan = 1:length(channel_list) % parse
                 try % convert
-                    aTemp_degC(i_chan) = mp.convertIEEE_754(cDataBitstring_cell{i_chan});
+                    aTemp_degC(i_chan) = this.convertIEEE_754(cDataBitstring_cell{i_chan});
                 catch
                     warning('error while reading temperature on one channel')
                     aTemp_degC(i_chan) = -274;
@@ -485,7 +619,95 @@ methods
         
     end
     
-    function aTemp_degC = measure_temperature_rtd(mp, channel_list, channel_type)
+    % Returns {double 1x48} fresh value of every channel from the circular
+    % buffer on the instrument.  The circular buffer is updated internally
+    % at 10Hz and reading it is fast.  It is recommended to use always
+    % use this method to read data.  
+    % setScanList
+    % setScanRate
+    % setSizeOfScanBuffer
+    % setScanTriggeSourceToDefault
+    % setSensorType
+    % initiateScan
+    % abortScan
+    function result = getScanData(this)
+        
+        fprintf(this.comm, 'FETCH? 1, 1'); 
+        dBytes = this.getNumOfExpectedBytesInScanRecord();
+        bytes_dec = fread(this.comm, dBytes);
+        
+        % BYTE 1 - {ASCII} #
+        % BYTE 2 - {ASCII} is a character 1-9, which is the number
+        % of bytes that the data length block occupies
+        % BYTE 3 up to 11 - {ASCII} characters 1-9 in sequence that
+        % show the number of bytes that follow, examples (after conversion
+        % to ASCII) are 4 (when reading one channel), 8 (when reading two channels), 192
+        % when reading 48 channels.
+        % BYTE 4 up to byte 12 is the start of the 4-byte data chunks 
+        % For the FETCH query, it returns SCAN_RECORD which consists of:
+        % unsigned long tmStamp;
+        % unsigned long tmMillisec;
+        % unsigned long scanNumber;
+        % unsigned long numValues;
+        % float values[];
+        
+        % LAST BYTE {ASII} ; char
+        
+        
+        % Convert bytes_dec into a hex char array
+        
+        bytes = dec2hex(bytes_dec);
+        % e.g. bytes ~ ['23';'31';'34';'47';'C3';'4F';'80':'0A']'
+
+        % reshape the bytes into a bytstring
+        bytestring = reshape(bytes',1,2*size(bytes_dec,1));
+        % e.g. bytestring = '23313447C34F800A'
+        
+        % Skip the first six bytes of data (12 hex characters)
+        % Skip byte 1
+        % Skip byte 2, which has ASCII value "4"
+        % Skip byte 3, 4, 5, 6 which has ASCII value "0208"
+       
+        cursor = 6 * 2 + 1;
+        
+        % tmStamp (long)
+        % The time stamp of the scan record, defined as the number of
+        % seconds that have elapsed since Coordinated Universal Time (UTC)
+        wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+        cursor = cursor + 2 * 4;
+        tmStamp = hex2dec(wordLong);
+        
+        % tmMillisec (long)
+        % The millisecond after tmStamp at which the sample was acquired.
+        wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+        cursor = cursor + 2 * 4;
+        tmMillisec = hex2dec(wordLong);
+        
+        % scanNumber (long)
+        % The index of the scan record in the circular buffer.
+        wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+        cursor = cursor + 2 * 4;
+        scanNumber = hex2dec(wordLong);
+        
+        %numValues (long)
+        % The number of single-precision values that follow in the record.
+        wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+        cursor = cursor + 2 * 4;
+        numValues = hex2dec(wordLong);
+        
+        % Channels 0 - 47 result (float)
+        result = zeros(1, 48);
+        for n = 1 : 48
+            wordIEEE32 = bytestring(cursor : cursor + 2 * 4 - 1);
+            result(n) = this.convertIEEE32Word(wordIEEE32);
+            cursor = cursor + 2 * 4;
+        end
+           
+        
+    end
+    
+    
+    function aTemp_degC = measure_temperature_rtd(this, channel_list, channel_type)
     %MEASURE_TEMPERATURE_RTD Measure the temperature one or multiple RTD channels
     %
     %   dTemp_degC = measure_temperature_rtd (channel_list) measures the temperature
@@ -494,14 +716,14 @@ methods
     %   dTemp_degC = measure_temperature_tc(channel_list, channel_type)
     %       allows you specify the channel_type
     %
-    %  e.g. : mp.measure_temperature_tc([2,4:6], 'PT1000') returns the temperature
+    %  e.g. : this.measure_temperature_tc([2,4:6], 'PT1000') returns the temperature
     %  readings from channels 2,4,5 and 6, and set their type as 'PT1000'
     %
     % Note that channels 0-7 are thermocouple and ch 8-47 are RTDs
     %
     % If no channel type is given, channel type will be set as default ('J')
     % If multiple channels are read at once, they must have the same type,
-    % otherwise please use mp.measure_multi()
+    % otherwise please use this.measure_multi()
     % 
     %   See also MEASURPOINT.MEASURE_VOLTAGE, MEASURPOINT.MEASURE_MULTI,
     %       	 MEASURPOINT.CHANNELTYPE, MEASURPOINT.GETSENSORTYPE
@@ -521,7 +743,7 @@ methods
         nchannels = numel(channel_list);
         % number of bytes to read from the buffer
         
-        nbytes = mp.getNumOfExpectedBytes(nchannels);
+        nbytes = this.getNumOfExpectedBytes(nchannels);
         
         % prepare the channel list for the query
         cChannels = sprintf('%d,',channel_list);
@@ -531,16 +753,16 @@ methods
         sQuery = sprintf('MEAS:TEMP:RTD? %s,(@%s)', channel_type, cChannels);
         
         % send the query
-        cDataBytestring = mp.queryData(sQuery,nbytes);
+        cDataBytestring = this.queryData(sQuery,nbytes);
         % unpack the result
-        [cDataBitstring_cell, ndata, block_length] = mp.unpack(cDataBytestring);
+        [cDataBitstring_cell, ndata, block_length] = this.unpack(cDataBytestring);
         
         % Convert the data and parse it to each channeln
         
         aTemp_degC = zeros(1,length(channel_list));
         for i_chan = 1:length(channel_list) % parse
             try % convert
-                aTemp_degC(i_chan) = mp.convertIEEE_754(cDataBitstring_cell{i_chan});
+                aTemp_degC(i_chan) = this.convertIEEE_754(cDataBitstring_cell{i_chan});
             catch
                 warning('error while reading temperature on one channel')
                 aTemp_degC(i_chan) = -274;
@@ -551,14 +773,14 @@ methods
         end
     end
     
-    function aVolt_V = measure_voltage(mp, channel_list)
+    function aVolt_V = measure_voltage(this, channel_list)
     %MEASURE_VOLTAGE Measure the temperature on one or multiple channels
     %
-    %   dVolt_V = mp.measure_voltage(channel_list) measure the voltage of
+    %   dVolt_V = this.measure_voltage(channel_list) measure the voltage of
     %   the channels on the channel list, and returns a vector of values in
     %   volts
     %
-    %   e.g. mp.measure_voltage(31:47) will return the voltage for channels 
+    %   e.g. this.measure_voltage(31:47) will return the voltage for channels 
     %   31 to 47
     %   
     %   Note that chan 31:47 support variable voltage range
@@ -576,7 +798,7 @@ methods
         nchannels = numel(channel_list);
         % number of bytes to read from the buffer
         
-        nbytes = mp.getNumOfExpectedBytes(nchannels);
+        nbytes = this.getNumOfExpectedBytes(nchannels);
         
         % prepare the channel list for the query
         cChannels = sprintf('%d,',channel_list);
@@ -586,16 +808,16 @@ methods
         sQuery = sprintf('MEAS:VOLT? (@%s)', cChannels);
         
         % send the query
-        cBytestring = mp.queryData(sQuery,nbytes);
+        cBytestring = this.queryData(sQuery,nbytes);
         
         % unpack the data
-        [cDataBitstrings_cell, ~, ~] = mp.unpack(cBytestring);
+        [cDataBitstrings_cell, ~, ~] = this.unpack(cBytestring);
         
         % Parse and convert the data
         aVolt_V = zeros(1,length(channel_list));
         for i_chan = 1:length(channel_list)
             try
-                aVolt_V(i_chan) = mp.convertIEEE_754(cDataBitstrings_cell{i_chan});
+                aVolt_V(i_chan) = this.convertIEEE_754(cDataBitstrings_cell{i_chan});
             catch
                 warning('error while reading temperature on one channel')
                 aVolt_V(i_chan) = -1;
@@ -606,14 +828,14 @@ methods
     end
     end
     
-    function aRes_O = measure_resistance(mp, channel_list)
+    function aRes_O = measure_resistance(this, channel_list)
     %MEASURE_RESISTANCE Measure the temperature on one or multiple channels
     %
-    %   aRes_O = mp.measure_resistance(channel_list) measure the resistance of
+    %   aRes_O = this.measure_resistance(channel_list) measure the resistance of
     %   the channels on the channel list, and returns a vector of values in
     %   ohms
     %
-    %   e.g. mp.measure_res(8:31) will return the voltage for channels
+    %   e.g. this.measure_res(8:31) will return the voltage for channels
     %   31 to 47
     %
     %   Note that this only works for RTD channels (typically ch 8 to 31)
@@ -631,7 +853,7 @@ methods
             nchannels = numel(channel_list);
             % number of bytes to read from the buffer
             
-            nbytes = mp.getNumOfExpectedBytes(nchannels);
+            nbytes = this.getNumOfExpectedBytes(nchannels);
             
             % prepare the channel list for the query
             cChannels = sprintf('%d,',channel_list);
@@ -641,16 +863,16 @@ methods
             sQuery = sprintf('MEAS:RES? (@%s)', cChannels);
             
             % send the query
-            cBytestring = mp.queryData(sQuery,nbytes);
+            cBytestring = this.queryData(sQuery,nbytes);
             
             % unpack the data
-            [cDataBitstrings_cell, ~, ~] = mp.unpack(cBytestring);
+            [cDataBitstrings_cell, ~, ~] = this.unpack(cBytestring);
             
             % Parse and convert the data
             aRes_O = zeros(1,length(channel_list));
             for i_chan = 1:length(channel_list)
                 try
-                    aRes_O(i_chan) = mp.convertIEEE_754(cDataBitstrings_cell{i_chan});
+                    aRes_O(i_chan) = this.convertIEEE_754(cDataBitstrings_cell{i_chan});
                 catch
                     warning('error while reading temperature on one channel')
                     aRes_O(i_chan) = -1;
@@ -661,59 +883,59 @@ methods
         end
     end
     
-    function [readings, channel_map] = measure_multi(mp, channel_list)
+    function [readings, channel_map] = measure_multi(this, channel_list)
         % Map onto proper channels
-        [tc, rtd, volt] =  mp.channelType();
+        [tc, rtd, volt] =  this.channelType();
         tc_channels   = intersect(tc,channel_list);
         rtd_channels  = intersect(rtd,channel_list);
         volt_channels = intersect(volt,channel_list);
         
         channel_map = [tc_channels, rtd_channels, volt_channels];
-        tc_readings   = mp.measure_temperature_tc(tc_channels);
-        rtd_readings  = mp.measure_temperature_rtd(rtd_channels);
-        volt_readings = mp.measure_voltage(volt_channels);
+        tc_readings   = this.measure_temperature_tc(tc_channels);
+        rtd_readings  = this.measure_temperature_rtd(rtd_channels);
+        volt_readings = this.measure_voltage(volt_channels);
         
         readings = [tc_readings, rtd_readings, volt_readings];
     end
     
-    function str_temp = MEASTEMP(mp)
+    function str_temp = MEASTEMP(this)
     %MEASTEMP Direct hex string output from the instrument on channel 2
     %   for debug purpose
     
     % test function -- should work
-        str_temp = mp.query('MEAS:TEMP:TC? DEF,(@2)');
+        str_temp = this.query('MEAS:TEMP:TC? DEF,(@2)');
     end
     
-    function str_volt = MEASVOLT(mp)
+    function str_volt = MEASVOLT(this)
     %MEASVOLT Direct hex string output from the instrument on channel 2
     %   for debug purpose
     
     % test function -- should work
-        str_volt = mp.query('MEAS:VOLT? (@2)');
+        str_volt = this.query('MEAS:VOLT? (@2)');
     end
     
-    function str_res = MEASRES(mp)
+    function str_res = MEASRES(this)
     %MEASRES Direct hex string output from the instrument on channel 2
     
     % untest function -- shouldn't work
-        str_res = mp.query('MEAS:RES? (@12)');
+        str_res = this.query('MEAS:RES? (@12)');
     end
     
-    function delete(mp)
+    function delete(this)
     %DELETE MeasurPoint class destructor
     %(aside from it closes the TCP/IP connection properly)
     
-        mp.disconnect();
+        this.disconnect();
     end
     
-    function general_status(mp)
+    function general_status(this)
     %GENERAL_STATUS Prints the general status of the insrument
-    %   mp.general_status()
+    %   this.general_status()
 
-        str_idn  = mp.query('*IDN?');
-        str_conf = mp.query(':CONF?');
-        str_stb  = mp.query('*STB?');
-        str_cen  = mp.query('SYSTem:PASSword:CENable:STATe?');
+        str_idn  = this.query('*IDN?');
+        str_conf = this.query(':CONF?');
+        str_stb  = this.query('*STB?');
+        str_cen  = this.query('SYSTem:PASSword:CENable:STATe?');
         fprintf('%s\n', str_idn)
         fprintf('%s\n', str_conf)
         fprintf('%s\n', str_stb)
@@ -721,7 +943,7 @@ methods
     end
     
     function [data_cell, ndata, block_length] = unpack(~, str_hex)
-    % [data_cell, ndata, block_length] = unpack(mp,str)
+    % [data_cell, ndata, block_length] = unpack(this,str)
         
         % str_hex = sprintf('%x',str_in);
         % number of bytes per chunk of data (fixed)
@@ -764,6 +986,10 @@ methods
         bitstring =  dec2bin(hex2dec(bytestring));
     end
     
+    % @param {char 1x8} 8-char hex string in IEEE.754 32-bit format
+    function d = convertIEEE32Word(this, cWord)
+        d = this.convertIEEE_754(dec2bin(hex2dec(cWord)));
+    end
 
     %TODO : refactor, static
     function dec_single = convertIEEE_754(~, str_bits)
@@ -772,8 +998,8 @@ methods
     %   dec_single = MEASUREpoint.convertIEEE_754(str)
     %
     %example:
-    %   cTemp = mp.MEASTEMP()
-    %   dTemp_degC = mp.convertIEEE_754(cTemp)
+    %   cTemp = this.MEASTEMP()
+    %   dTemp_degC = this.convertIEEE_754(cTemp)
     %
     %   (for the recordds, 41bd99b6 => 24.7° C
     
@@ -802,27 +1028,27 @@ methods
         dec_single = signum*mantissa*2^exponent;
     end
     
-    function [channels_tc, channels_rtd, channels_vol] = channelType(mp)
+    function [channels_tc, channels_rtd, channels_vol] = channelType(this)
     %CHANNELTYPE Returns a list of the channels types
-    %   [channels_tc, channels_rtd, channels_vol] = mp.channelType()
+    %   [channels_tc, channels_rtd, channels_vol] = this.channelType()
     %       returns three arrays containing the channels that support
     %       thermocouples, RTD and variable voltage sensor.
     %
     % See also MEASUREPOINT.GETSENSORTYPE, MEASUREPOINT.SETSENSORTYPE
     
-        cTC  = strtrim(mp.query(':SYSTem:CHANnel:TC?'));
-        cRTD = strtrim(mp.query(':SYSTem:CHANnel:RTD?'));
-        cVol = strtrim(mp.query(':SYST:CHAN:VOLT:RANG?'));
+        cTC  = strtrim(this.query(':SYSTem:CHANnel:TC?'));
+        cRTD = strtrim(this.query(':SYSTem:CHANnel:RTD?'));
+        cVol = strtrim(this.query(':SYST:CHAN:VOLT:RANG?'));
         
         channels_tc  = str2num(cTC(3:end-1));
         channels_rtd = str2num(cRTD(3:end-1));
         channels_vol = str2num(cVol(3:end-1));
     end
     
-    function monitor_terminal(mp, channel, dt_s)
+    function monitor_terminal(this, channel, dt_s)
     %MONITOR LOOP Monitor the temperature on a specific channel
     %
-    %   mp.monitor_loop(channel, dt_s) 
+    %   this.monitor_loop(channel, dt_s) 
     %       diplays the temperature on a specific channel with reading
     %       interval dt_s (in seconds)
     %
@@ -840,7 +1066,7 @@ methods
         a = '';
         warning off
         while true
-            temp = mp.measure_temperature_tc(channel);
+            temp = this.measure_temperature_tc(channel);
             if ~strcmp(a,'')
                 del = '';
                 for i=1:length(a)
@@ -855,13 +1081,13 @@ methods
         end
     end
     
-    function monitor_graph(mp, channel, dt_s, N_pts)
+    function monitor_graph(this, channel, dt_s, N_pts)
     %MONITOR_GRAPH plot the temperature readings on a figure
     %
-    %    mp.monitor_graph(channel) display continous reading of the
+    %    this.monitor_graph(channel) display continous reading of the
     %       temperature from a specific channel with 0.1s time step over 10s
     %
-    %    mp.monitor_graph(channel, dt_s, N_pts) lets you define the time
+    %    this.monitor_graph(channel, dt_s, N_pts) lets you define the time
     %    step and the total number of points.
     %
     %    
@@ -874,7 +1100,7 @@ methods
             N_pts = 100;
         end
         
-        T0 = mp.measure_temperature_tc(channel);
+        T0 = this.measure_temperature_tc(channel);
         t_s=(0:(N_pts-1))*dt_s;
         aTemp_C = ones(1,N_pts).*T0;
         
@@ -883,7 +1109,7 @@ methods
         idx = 0;
         while hFigure.isvalid
             idx = mod(idx,N_pts)+1;
-            aTemp_C(idx) = mp.measure_temperature_tc(channel);
+            aTemp_C(idx) = this.measure_temperature_tc(channel);
             plot(t_s,aTemp_C,'k',t_s(idx),aTemp_C(idx),'xk')
             xlabel('time [sec]');
             ylabel('temperature [degC]')
@@ -928,14 +1154,47 @@ end %methods
             TF = ge@handle(varargin{:});
         end
         
-        function nbytes = getNumOfExpectedBytes(mp, channels)
+        
+        function nbytes = getNumOfExpectedBytesInScanRecord(this)
             
-            numDataBytes = channels * 4;
-            nbytes = 1 + ... % header byte
+            nbytes = 215;
+            return
+            
+            %{
+            struct {
+                unsigned long tmStamp;
+                unsigned long tmMillisec;
+                unsigned long scanNumber;
+                unsigned long numValues;
+                float values[];
+            } SCAN_RECORD;
+            %}
+
+            % Example reaponse for 2 channels
+            % 1-byte % x23 character
+            % 1-byte % 
+            
+            numDataBytes = 4 + 4 + 4 + 4 + 48 * 4; % base10
+            
+            % num of base10 numbers to represent numDataBytes (this number
+            % is in the response in base10, need one byte for each base10
+            % number
+            
+            nbytes = 1 + ... % header byte for # char
                 1 + ... % this byte contains the number of bytes in the data length byte group
                 ceil(log10(numDataBytes)) + ... % one byte for each data decimal
                 numDataBytes + ...
-                1; % stop byte (terminator)
+                1; % stop byte for terminator ; char
+        end
+        
+        function nbytes = getNumOfExpectedBytes(this, channels)
+            
+            numDataBytes = channels * 4;
+            nbytes = 1 + ... % header byte for # char
+                1 + ... % this byte contains the number of bytes in the data length byte group
+                ceil(log10(numDataBytes)) + ... % one byte for each data decimal
+                numDataBytes + ...
+                1; % stop byte for terminator ; char
         end
         
    end

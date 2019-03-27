@@ -78,6 +78,7 @@ methods
         % Don't use Nagle's algorithm; send data
         % immediately to the newtork
         this.comm.TransferDelay = 'off'; 
+        this.comm.Timeout = 2;
         
         if this.verbosity>0
             disp('NI VISA object object initialized')
@@ -250,8 +251,8 @@ methods
             % read the data (fread waits for nbytes to accumulate in the
             % output buffer)
             
-            bytes_dec = fread(this.comm,nbytes)
-            char(bytes_dec)
+            bytes_dec = fread(this.comm,nbytes);
+            char(bytes_dec);
             dTimeRead = toc(dTimeStart);
             
             if this.verbosity > 1
@@ -651,9 +652,27 @@ methods
         
         fprintf(this.comm, 'FETCH? 1, 1'); 
         dBytes = this.getNumOfExpectedBytesInScanRecord();
-        bytes_dec = fread(this.comm, dBytes);
+       
+        [bytes_dec, count, error] = fread(this.comm, dBytes);
         
-        this.lIsBusy = false;
+        if ~isempty(error)
+        
+            % Timeout / Error
+            
+            % Clear bytes available so the next time we don't get
+            % a messed up answer
+            
+            fprintf('+datatranslation/MeasurPoint.getScanData() ERROR');
+            
+            this.clearBytesAvailable();
+            this.lIsBusy = false;
+            
+            % Try again
+            result = this.getScanData();
+            return;
+        end
+        
+        
         
         % BYTE 1 - {ASCII} #
         % BYTE 2 - {ASCII} is a character 1-9, which is the number
@@ -683,9 +702,10 @@ methods
         % e.g. bytestring = '23313447C34F800A'
         
         % Skip the first six bytes of data (12 hex characters)
-        % Skip byte 1
-        % Skip byte 2, which has ASCII value "4"
-        % Skip byte 3, 4, 5, 6 which has ASCII value "0208"
+        % Skip byte 1 x23
+        % Skip byte 2, which has ASCII value "4" x34
+        % Skip byte 3, 4, 5, 6 which has ASCII value "0208" or 
+        % hex value x30323038 "0" "2" "0" "8"
        
         cursor = 6 * 2 + 1;
         
@@ -722,6 +742,7 @@ methods
             cursor = cursor + 2 * 4;
         end
            
+        this.lIsBusy = false;
         
     end
     

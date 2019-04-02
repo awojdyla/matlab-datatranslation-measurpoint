@@ -37,6 +37,12 @@ properties (Access = private)
         % commands to not communicate with hardware and return bogus value
     lIsBusy = false
     
+    % Cache for getData
+    ticGetVariables
+    tocMin = 0.2;
+    dScanData % {double 1 x m} see getScanData()
+
+    
 end
 
 methods
@@ -58,6 +64,10 @@ methods
         this.init();
     end
     
+    function clearCache(this)
+            this.ticGetVariables = [];
+    end
+        
     function l = getIsBusy(this)
         l = this.lIsBusy;
     end
@@ -390,15 +400,30 @@ methods
     function c = getSizeOfScanBuffer(this)
         c = this.query('CONF:SCA:BUF?');
     end
+    %  Returns the indices of the chronologically oldest and most recent
+    %  scan records in the circular buffer on the instrument.
+    function [dIndexStart, dIndexEnd] = getIndiciesOfScanBuffer(this)
+        
+        c = this.query('STAT:SCA?');
+        ceVals = strsplit(c, ',');
+        dIndexStart = str2num(ceVals{1});
+        dIndexEnd = str2num(ceVals{2});
+        
+    end
     
+    
+    %{
+    % NOT POSSIBLE ON HARDWARE
     % Sets the size of the circular buffer in bytes.  Need 4 bytes per
     % channel, per scan.
     % E.g. if the buffer should only be large enough for one scan, 
     % and the scan list is set to channels 0 : 47, the size of the 
     % circular buffer should be 4 * 48;
     function setSizeOfScanBuffer(this, u32Bytes)
-        cCmd = sprintf('CONF:SCA:BUF %d', u32Bytes);
+        cCmd = sprintf('CONF:SCA:BUF %d', u32Bytes)
+        this.query(cCmd);
     end
+    %}
     
     % Configures the trigger source that starts the analog input operation
     % on the instrument once the INITiate command is executed.
@@ -648,9 +673,23 @@ methods
     % abortScan
     function result = getScanData(this)
         
+        % Check if should return cached value
+        if ~isempty(this.ticGetVariables)
+            if (toc(this.ticGetVariables) < this.tocMin)
+                % Use cache
+                result = this.dScanData;
+                % fprintf('datatranslation.MeasurPoint.getScanData() using cache\n');
+                return;
+            end
+        end
+            
         this.lIsBusy = true;
         
-        fprintf(this.comm, 'FETCH? 1, 1'); 
+        % Ask the hardware for the most recent index of the circular buffer
+        % that was filled and do a FETCH to get data from it
+        [dIndexStart, dIndexEnd] = this.getIndiciesOfScanBuffer();
+        cCmd = sprintf('FETCH? %d, 1', dIndexEnd);
+        fprintf(this.comm, cCmd); 
         dBytes = this.getNumOfExpectedBytesInScanRecord();
        
         [bytes_dec, count, error] = fread(this.comm, dBytes);
@@ -742,6 +781,10 @@ methods
             cursor = cursor + 2 * 4;
         end
            
+        % Reset tic and update cache
+        this.ticGetVariables = tic();
+        this.dScanData = result;
+        
         this.lIsBusy = false;
         
     end

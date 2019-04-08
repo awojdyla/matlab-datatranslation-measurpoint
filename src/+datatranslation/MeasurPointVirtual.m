@@ -30,7 +30,7 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             
             channels_tc = 0 : 7;
             channels_rtd = 8 : 31;
-            channels_vol = 32 : 40;
+            channels_vol = 32 : 47;
         end
         
     end

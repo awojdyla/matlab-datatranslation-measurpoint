@@ -3,7 +3,10 @@
 
 %% Add src (function in this dir, navigate to this dir to run)
 
-addSrc();
+[cDirThis, ~, ~] = fileparts(mfilename('fullpath'));
+cDirSrc = fullfile(cDirThis, '..', 'src');
+addpath(genpath(cDirSrc));
+
 
 %% Initiate the instrument class
 
@@ -19,6 +22,30 @@ mp.idn();
 
 %% Enable readout on protected channels
 mp.enable();
+mp.abortScan();
+
+%% Show the scan list
+mp.getScanList()
+mp.getScanRate()
+
+
+%% Start scan
+mp.initiateScan();
+
+%% Show indicies of circular buffer scan
+[dIndexStart, dIndexEnd] = mp. getIndiciesOfScanBuffer()
+
+%% Read all values from the scan buffer
+results = mp.getScanData()
+
+
+
+%% Measure voltage on one channel
+tic
+channel = 33;
+volt = mp.measure_voltage(channel)
+fprintf('voltage = %2.3f V\n', volt)
+toc
 
 %% read one channel
 channel = 3;
@@ -30,6 +57,20 @@ fprintf('temperature = %2.3f degree C\n',temp_C)
 channel = 24;
 temp_C = mp.measure_temperature_rtd(channel)
 fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on a specific channel (TC), with sensor type J
+channels = 0 : 7;
+sensorType = 'J';
+temp_C = mp.measure_temperature_tc(channels, sensorType);
+fprintf('temperature = %2.3f degree C\n',temp_C)
+
+%% Measure temperature on multiple channels (TC), with sensor type
+channels = 8 : 15;
+temp_C = mp.measure_temperature_rtd(channels, 'PT1000');
+fprintf('temperatures = ')
+fprintf('%2.3fC - ',temp_C)
+fprintf('\n')
+
 
 
 %% Regular query
@@ -67,18 +108,6 @@ channel = 3;
 temp_C = mp.measure_temperature_tc(channel);
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
-%% Measure temperature on a specific channel (TC), with sensor type
-channel = 3;
-sensorType = 'J';
-temp_C = mp.measure_temperature_tc(channel, sensorType);
-fprintf('temperature = %2.3f degree C\n',temp_C)
-
-%% Measure temperature on multiple channels (TC), with sensor type
-channel_list = 0:3;
-temp_C = mp.measure_temperature_tc(channel_list);
-fprintf('temperatures = ')
-fprintf('%2.3fC - ',temp_C)
-fprintf('\n')
 
 %% Measure temperature on a specific channel (RTD)
 channel = 9;
@@ -102,10 +131,7 @@ fprintf('temperatures = ')
 fprintf('%2.3fC - ',temp_C)
 fprintf('\n')
 
-%% Measure voltage on one channel
-channel = 42;
-volt = mp.measure_voltage(channel);
-fprintf('voltage = %2.3f V\n', volt)
+
 
 %% Measure voltage on multiple channel
 channel_list = [10,40:42];
@@ -160,6 +186,49 @@ if false % so that the script can be "Run" all at once
 
 end
 
+%% Monitor graph
+
+channel =33;
+dt_s = 0.1;
+N_pts = 100;
+mp.monitor_graph(channel, dt_s, N_pts);
+
+%%
+
+channels = 0 : 7;
+for n = channels
+   mp.setSensorType(n, 'J');
+end
+
+channels = 8 : 15;
+for n = channels
+    mp.setSensorType(n, 'PT1000');
+end
+
+ channels = 16 : 19;
+for n = channels
+    mp.setSensorType(n, 'PT100');
+end
+
+channels = 20 : 23;
+for n = channels
+   mp.setSensorType(n, 'PT1000');
+end
+
+channels = 24 : 31;
+for n = channels
+    mp.setSensorType(n, 'PT100');
+end
+
+channels = 32 : 47;
+for n = channels
+    mp.setSensorType(n, 'V');
+end
+
+
+
 %% Disconnect
 mp.disconnect();
+
+
 

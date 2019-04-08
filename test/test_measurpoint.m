@@ -55,12 +55,16 @@ fprintf('temperature = %2.3f degree C\n',temp_C)
 %% Measure temperature on a specific channel (TC), with sensor type
 channel = 3;
 sensorType = 'J';
+tic
 temp_C = mp.measure_temperature_tc(channel, sensorType);
+toc
 fprintf('temperature = %2.3f degree C\n',temp_C)
 
 %% Measure temperature on multiple channels (TC), with sensor type
 channel_list = 0:3;
+tic
 temp_C = mp.measure_temperature_tc(channel_list);
+toc
 fprintf('temperatures = ')
 fprintf('%2.3fC - ',temp_C)
 fprintf('\n')

@@ -10,6 +10,22 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             c = 'MeasurPointVirtual';
         end
         
+        function l = getIsBusy(this)
+            l = false
+        end
+        
+        function d = getScanDataOfChannel(this, u8Channel)
+            dAll = this.getScanData();
+            d = dAll(u8Channel + 1);
+        end
+        
+        function d = getScanData(this)
+            d = zeros(1, 48);
+            d(1:8) = randn(size(channel_list)) + 18;
+            d(9:32) = randn(size(channel_list)) + 20;
+            d(33:48) = randn(size(channel_list)) + 5;
+        end
+        
         function d = measure_temperature_tc(this, channel_list, channel_type)
             d = randn(size(channel_list)) + 20;
         end

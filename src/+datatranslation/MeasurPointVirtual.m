@@ -14,6 +14,11 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             l = false
         end
         
+        function d = getScanDataOfChannel(this, u8Channel)
+            dAll = this.getScanData();
+            d = dAll(u8Channel + 1);
+        end
+        
         function d = getScanData(this)
             d = zeros(1, 48);
             d(1:8) = randn(size(channel_list)) + 18;

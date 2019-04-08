@@ -28,7 +28,7 @@ properties
     %500v-isolation/data-logger-software,1355.html
     cIP = '192.168.127.100'; % SCPI connection string
     comm   % tcpip || VISA object (see init())
-    verbosity = 2; %1: show proper connection; 2: show all i/o's
+    verbosity = 1; %1: show proper connection; 2: show all i/o's
 end
 
 properties (Access = private)
@@ -657,6 +657,14 @@ methods
         else % empty channel list
             aTemp_degC = [];
         end
+        
+    end
+    
+    % {u8Channel} zero-indexed channel of the instrument
+    function d = getScanDataOfChannel(this, u8Channel)
+        
+        dAll = this.getScanData();
+        d = dAll(u8Channel + 1);
         
     end
     

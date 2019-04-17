@@ -21,9 +21,9 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         
         function d = getScanData(this)
             d = zeros(1, 48);
-            d(1:8) = randn(size(channel_list)) + 18;
-            d(9:32) = randn(size(channel_list)) + 20;
-            d(33:48) = randn(size(channel_list)) + 5;
+            d(1:8) = randn(1,8) + 18;
+            d(9:32) = randn(1, 24) + 20;
+            d(33:48) = randn(1, 16) + 5;
         end
         
         function d = measure_temperature_tc(this, channel_list, channel_type)

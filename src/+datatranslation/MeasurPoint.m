@@ -404,10 +404,15 @@ methods
     %  scan records in the circular buffer on the instrument.
     function [dIndexStart, dIndexEnd] = getIndiciesOfScanBuffer(this)
         
-        c = this.query('STAT:SCA?');
-        ceVals = strsplit(c, ',');
-        dIndexStart = str2num(ceVals{1});
-        dIndexEnd = str2num(ceVals{2});
+        try
+            c = this.query('STAT:SCA?');
+            ceVals = strsplit(c, ',');
+            dIndexStart = str2num(ceVals{1});
+            dIndexEnd = str2num(ceVals{2});
+        catch mE
+           dIndexStart = 1;
+           dIndexEnd = 1;
+        end
         
     end
     

@@ -65,5 +65,17 @@ fprintf('voltages = ')
 fprintf('%2.1eV  -  ', volt)
 fprintf('\n')
 
+%% Read as many values as supported by network packet continuously
+
+[dIndexStart, dIndexEnd] = mp. getIndiciesOfScanBuffer()
+for n = 1 : 5
+    [results, dIndexStart] = mp.getScanDataAheadOfIndex(dIndexStart);
+    plot(...
+        datetime(results(:,49), 'ConvertFrom', 'posixtime'), ...
+        results(:, 20:25), ...
+        '.-')
+    pause(1);
+end
+
 
 

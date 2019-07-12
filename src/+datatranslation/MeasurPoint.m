@@ -41,6 +41,10 @@ properties (Access = private)
     ticGetVariables
     tocMin = 0.2;
     dScanData % {double 1 x m} see getScanData()
+    
+    % {double 1x1} storage of the number of times getScanData()
+    % has thrown an error.  
+    dNumOfSequentialGetScanDataErrors = 0
 
     
 end
@@ -88,7 +92,8 @@ methods
         % Don't use Nagle's algorithm; send data
         % immediately to the newtork
         this.comm.TransferDelay = 'off'; 
-        this.comm.Timeout = 2;
+        this.comm.Timeout = 5;
+        this.comm.InputBufferSize = 2^20; % bytes ~ 1MB
         
         if this.verbosity>0
             disp('NI VISA object object initialized')
@@ -400,6 +405,8 @@ methods
     function c = getSizeOfScanBuffer(this)
         c = this.query('CONF:SCA:BUF?');
     end
+    
+    
     %  Returns the indices of the chronologically oldest and most recent
     %  scan records in the circular buffer on the instrument.
     function [dIndexStart, dIndexEnd] = getIndiciesOfScanBuffer(this)
@@ -673,6 +680,184 @@ methods
         
     end
     
+    
+    % Returns {double n x 48} scan records from the circular
+    % buffer where n is the lower of the number chronologically newer
+    % than the provided index or the maximum number of records supported
+    % by the size of the network packet, which is 20 records when each
+    % record contains 48 channel.  It also returns the end index
+    % @param {double 1x1} dIndex - [0 - large number]
+    
+    function [result, dIndexEnd] = getScanDataAheadOfIndex(this, dIndex)
+        
+        this.lIsBusy = true;
+        % Ask the hardware for the most recent index of the circular buffer
+        % that was filled and do a FETCH to get data from it
+        [dIndexStart, dIndexEnd] = this.getIndiciesOfScanBuffer();
+        
+        % Error checking
+        if dIndex < dIndexStart
+            dIndex = dIndexStart;
+        end
+        
+        if dIndexEnd == 0
+            result = zeros(1, 48);
+            return;
+        end
+        
+        if dIndex > dIndexEnd
+            dIndex = dIndexEnd - 1;
+        end
+        
+        dNum = dIndexEnd - dIndex;
+        if dNum > 20 % max supported by network packet 
+            dNum = 20; 
+        end
+              
+        result = this.getScanDataSet(dIndex, dNum);
+        dIndexEnd = dIndex + dNum;
+        this.lIsBusy = false;
+        
+    end
+    
+    % Returns {double n x 49} scan records from the circular
+    % buffer between indicies dIndex and dIndex + dNumRecords
+    % The amount of data that is return is limited by the packet size of the network. 
+    % The absolute limitation on TCP packet size is 64K (65535 bytes),
+    % but in practicality this is far larger than the size of any
+    % packet you will see, because the lower layers (e.g. ethernet)
+    % have lower packet sizes which is about 20 records when the records
+    % contain 48 channels each
+    % @param {double 1x1} dIndex - [0 - large number]
+    % @param {double 1x1} dNumRecords - number of records to retrieve
+    
+    function [result] = getScanDataSet(this, dIndex, dNumRecords)
+        
+        % NOTE
+        this.lIsBusy = true;
+        
+        % Error checking based on populated indicies of the buffer
+        
+        [dIndexStart, dIndexEnd] = this.getIndiciesOfScanBuffer();
+        if dIndex < dIndexStart
+            dIndex = dIndexStart;
+        end
+        
+        if dIndexEnd - dIndexStart < dNumRecords
+            dNumRecords = dIndexEnd - dIndexStart;
+        end
+        
+        if dNumRecords == 0
+            result = zeros(1, 49);
+            return
+        end
+        
+        cCmd = sprintf('FETCH? %d, %d', dIndex, dNumRecords);
+        fprintf(this.comm, cCmd); 
+                
+        
+        % BYTE 1 - {ASCII} #
+        % BYTE 2 - {ASCII} is a character 1-9, which is the number
+        % of bytes that the data length block occupies
+        % BYTE 3 up to 11 - {ASCII} characters 1-9 in sequence that
+        % show the number of bytes that follow, examples (after conversion
+        % to ASCII) are 4 (when reading one channel), 8 (when reading two channels), 192
+        % when reading 48 channels.
+        % BYTE 4 up to byte 12 is the start of the 4-byte data chunks 
+        % For the FETCH query, it returns SCAN_RECORD which consists of:
+        % unsigned long tmStamp;
+        % unsigned long tmMillisec;
+        % unsigned long scanNumber;
+        % unsigned long numValues;
+        % float values[];
+        
+        % For each scan record, get back
+        % 4 bytes for tmStamp
+        % 4 bytes for tmMillisec
+        % 4 bytes for scanNumber
+        % 4 bytes for numValues
+        % 4 bytes for each channel that was specified in the channel list. (192 bytes if 48 channels)
+        % -------
+        % = 208 bytes
+        
+        dNumBytesData = 208 * dNumRecords;
+        dNumBytesHeader = ...
+            1 + ... % header byte for # char
+            1 + ... % this byte contains the number of bytes in the data length byte group
+            max(ceil(log10(dNumBytesData)), 4); % one byte for each data decimal, with a minimum of 4
+        dNumBytesTerminator = 1; % stop byte for terminator ; char
+        
+        dNumBytes = dNumBytesHeader + dNumBytesData + dNumBytesTerminator;
+       
+        [bytes_dec, count, error] = fread(this.comm, dNumBytes);
+        
+        if ~isempty(error)
+            fprintf('+datatranslation.MeasurPoint.getScanDataSet ERROR\n');
+            fprintf('%s\n', error);
+            fprintf('Returning zeros');
+            result = zeros(1, 49);
+            return;
+        end
+                
+              
+        % Convert bytes_dec into a hex char array
+        
+        bytes = dec2hex(bytes_dec);
+        % e.g. bytes ~ ['23';'31';'34';'47';'C3';'4F';'80':'0A']'
+
+        % reshape the bytes into a bytstring
+        bytestring = reshape(bytes',1,2*size(bytes_dec,1));
+        % e.g. bytestring = '23313447C34F800A'
+        
+        % Skip the number of bytes in the header, two ascii characters per
+        % byte
+        cursor = dNumBytesHeader * 2 + 1;
+        
+        result = zeros(dNumRecords, 49);
+        
+        for m = 1 : dNumRecords
+            
+            % tmStamp (long)
+            % The time stamp of the scan record, defined as the number of
+            % seconds that have elapsed since Coordinated Universal Time (UTC)
+            wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+            cursor = cursor + 2 * 4;
+            tmStamp = hex2dec(wordLong);
+
+            % tmMillisec (long)
+            % The millisecond after tmStamp at which the sample was acquired.
+            wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+            cursor = cursor + 2 * 4;
+            tmMillisec = hex2dec(wordLong);
+
+            % scanNumber (long)
+            % The index of the scan record in the circular buffer.
+            wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+            cursor = cursor + 2 * 4;
+            scanNumber = hex2dec(wordLong);
+
+            %numValues (long)
+            % The number of single-precision values that follow in the record.
+            wordLong = bytestring(cursor : cursor + 2 * 4 - 1);
+            cursor = cursor + 2 * 4;
+            numValues = hex2dec(wordLong);
+
+            % Channels 0 - 47 result (float)
+            
+            for n = 1 : 48
+                wordIEEE32 = bytestring(cursor : cursor + 2 * 4 - 1);
+                result(m, n) = this.convertIEEE32Word(wordIEEE32);
+                cursor = cursor + 2 * 4;
+            end
+            
+            result(m, 49) = tmStamp + tmMillisec / 1000;
+           
+        end
+        
+        this.lIsBusy = false;
+                
+    end
+    
     % Returns {double 1x48} fresh value of every channel from the circular
     % buffer on the instrument.  The circular buffer is updated internally
     % at 10Hz and reading it is fast.  It is recommended to use always
@@ -708,18 +893,37 @@ methods
         [bytes_dec, count, error] = fread(this.comm, dBytes);
         
         if ~isempty(error)
+            
+            % Try again
+            this.dNumOfSequentialGetScanDataErrors = this.dNumOfSequentialGetScanDataErrors + 1;
         
+            if this.dNumOfSequentialGetScanDataErrors > 5
+                cMsg = [...
+                    '+datatranslation/MeasurPoint.getScanData()', ...
+                    '> 5 sequential errors. ', ...
+                    'Returning last good data.\n'
+                ];
+                fprintf(cMsg);
+                result = this.dScanData;
+                return;
+                
+            end
             % Timeout / Error
             
             % Clear bytes available so the next time we don't get
             % a messed up answer
             
-            fprintf('+datatranslation/MeasurPoint.getScanData() ERROR');
+            cMsg = [...
+                '+datatranslation/MeasurPoint.getScanData() ', ...
+                sprintf('ERROR #%d calling recursively', this.dNumOfSequentialGetScanDataErrors), ...
+                '\n' ...
+            ];
+            fprintf(cMsg);
             
             this.clearBytesAvailable();
             this.lIsBusy = false;
             
-            % Try again
+            
             result = this.getScanData();
             return;
         end
@@ -755,9 +959,19 @@ methods
         
         % Skip the first six bytes of data (12 hex characters)
         % Skip byte 1 x23
-        % Skip byte 2, which has ASCII value "4" x34
+        % Skip byte 2, which has ASCII value "4" x34 // number of bytes in
+        % the data length block
         % Skip byte 3, 4, 5, 6 which has ASCII value "0208" or 
-        % hex value x30323038 "0" "2" "0" "8"
+        % hex value x30323038 "0" "2" "0" "8" // this says there are 208
+        % bytes in the data block:
+        % 4 bytes for tmStamp
+        % 4 bytes for tmMillisec
+        % 4 bytes for scanNumber
+        % 4 bytes for numValues
+        % 4 bytes for each channel that was specified in the channel list. (192 bytes if 48 channels)
+        % -------
+        % = 208 bytes
+        % So for each scan record, get back 208 bytes
        
         cursor = 6 * 2 + 1;
         
@@ -797,8 +1011,8 @@ methods
         % Reset tic and update cache
         this.ticGetVariables = tic();
         this.dScanData = result;
-        
         this.lIsBusy = false;
+        this.dNumOfSequentialGetScanDataErrors = 0;
         
     end
     
@@ -1278,7 +1492,7 @@ end %methods
             
             nbytes = 1 + ... % header byte for # char
                 1 + ... % this byte contains the number of bytes in the data length byte group
-                ceil(log10(numDataBytes)) + ... % one byte for each data decimal
+                max(ceil(log10(10233)), 4) + ... % one byte for each data decimal, with a minimum of 4
                 numDataBytes + ...
                 1; % stop byte for terminator ; char
         end

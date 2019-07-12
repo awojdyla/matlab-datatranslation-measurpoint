@@ -1,8 +1,19 @@
 classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
 
+    properties (Access = private)
+        
+        dateTimeStart
+        dHz = 10
+        
+        
+    end
+    
+    
     methods
         
         function this = MeasurPointVirtual()
+            
+            this.dateTimeStart = datetime('now');
             
         end
 
@@ -18,6 +29,59 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             dAll = this.getScanData();
             d = dAll(u8Channel + 1);
         end
+        
+        function [dIndexStart, dIndexEnd] = getIndiciesOfScanBuffer(this)
+            
+            dIndexStart = 0;
+            dSeconds = seconds(datetime('now') - this.dateTimeStart);
+            dIndexEnd = floor(10 * dSeconds);
+        end
+        
+        function [dResults, dIndexEnd] = getScanDataAheadOfIndex(this, dIndex)
+            
+            
+            [dIndexStart, dIndexEnd] = this.getIndiciesOfScanBuffer();
+
+            % Error checking
+            if dIndex < dIndexStart
+                dIndex = dIndexStart;
+            end
+
+            if dIndexEnd == 0
+                dResults = zeros(1, 49);
+                dResults(49) = posixtime(datetime('now'));
+                return;
+            end
+
+            if dIndex > dIndexEnd
+                dIndex = dIndexEnd - 1;
+            end
+
+            dNum = dIndexEnd - dIndex;
+            if dNum > 20 % max supported by network packet 
+                dNum = 20; 
+            end
+            
+            dIndexEnd = dIndex + dNum;
+            dResults = this.getScanDataSet(dIndex, dNum);
+                        
+        end
+        
+        function d = getScanDataSet(this, dIndex, dNum)
+            
+            d = zeros(dNum, 49);
+            d(:, 1:8) = randn(dNum,8) + 18;
+            d(:, 9:32) = randn(dNum, 24) + 20;
+            d(:, 33:48) = randn(dNum, 16) + 5;
+            
+            dStep = 0.1; % sec
+            
+            dDateTimeOfIndex = this.dateTimeStart + seconds(dIndex / 10);
+            
+            t = dDateTimeOfIndex + seconds(0 : dStep : (dNum - 1)* dStep);
+            d(:, 49) = posixtime(t);
+        end
+       
         
         function d = getScanData(this)
             d = zeros(1, 48);

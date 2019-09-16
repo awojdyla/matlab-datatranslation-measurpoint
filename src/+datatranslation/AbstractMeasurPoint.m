@@ -9,7 +9,9 @@ classdef AbstractMeasurPoint < handle
         aRes_O = measure_resistance(this, channel_list)
         d = getScanData(this)
         [channels_tc, channels_rtd, channels_vol] = channelType(this)
-        
+        c = getFilterType(this)
+        setFilterTypeToRaw(this)
+        setFilterTypeToAvg(this)
         l = getIsBusy(this)
         
     end

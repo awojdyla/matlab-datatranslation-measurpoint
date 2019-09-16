@@ -5,7 +5,7 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         dateTimeStart
         dHz = 10
         
-        
+        cFilterType = 'AVG'
     end
     
     
@@ -22,7 +22,7 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         end
         
         function l = getIsBusy(this)
-            l = false
+            l = false;
         end
         
         function d = getScanDataOfChannel(this, u8Channel)
@@ -113,6 +113,17 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             channels_vol = 32 : 47;
         end
         
+        function c = getFilterType(this)
+            c = this.cFilterType;
+        end
+
+        function setFilterTypeToRaw(this)
+            this.cFilterType = 'RAW';
+        end
+
+        function setFilterTypeToAvg(this)
+            this.cFilterType = 'AVG';
+        end
     end
 end
 

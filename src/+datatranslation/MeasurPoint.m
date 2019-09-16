@@ -144,6 +144,19 @@ methods
         fprintf('Connected to remote host %s\n', this.comm.propinfo.RemoteHost.DefaultValue)
     end
     
+    % Returns RAW or AVG
+    function c = getFilterType(this)
+        c = this.query(':CONF:FILT?');
+    end
+    
+    function setFilterTypeToRaw(this)
+        this.query(':CONF:FILT RAW');
+    end
+    
+    function setFilterTypeToAvg(this)
+        this.query(':CONF:FILT AVG');
+    end
+    
     function lIsConnected = isConnected(this)
     %ISCONNECTED Checks whether the communication the device is established
     %   isconnected = this.isConnected() returns 'true' if the device is

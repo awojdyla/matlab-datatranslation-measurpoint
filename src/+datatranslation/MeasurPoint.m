@@ -97,7 +97,7 @@ methods
         % Don't use Nagle's algorithm; send data
         % immediately to the newtork
         this.comm.TransferDelay = 'off'; 
-        this.comm.Timeout = 5;
+        this.comm.Timeout = 2;
         this.comm.InputBufferSize = 2^20; % bytes ~ 1MB
         
         if this.verbosity>0

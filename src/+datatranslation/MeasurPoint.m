@@ -45,6 +45,11 @@ properties (Access = private)
     % {double 1x1} storage of the number of times getScanData()
     % has thrown an error.  
     dNumOfSequentialGetScanDataErrors = 0
+    
+    % {double 1x1} storage of the last successfully read index start and
+    % index end of the scan buffer
+    dIndexStart = 1;
+    dIndexEnd = 1;
 
     
 end
@@ -427,11 +432,22 @@ methods
         try
             c = this.query('STAT:SCA?');
             ceVals = strsplit(c, ',');
-            dIndexStart = str2num(ceVals{1});
-            dIndexEnd = str2num(ceVals{2});
+            if length(ceVals) == 1
+                % there was an error, send out the last good values
+                dIndexStart = this.dIndexStart;
+                dIndexEnd = this.dIndexEnd;
+            else
+                dIndexStart = str2num(ceVals{1});
+                dIndexEnd = str2num(ceVals{2});
+                
+                % Update last good values
+                this.dIndexStart = dIndexStart;
+                this.dIndexEnd = dIndexEnd;
+                
+            end
         catch mE
-           dIndexStart = 1;
-           dIndexEnd = 1;
+           dIndexStart = this.dIndexStart;
+           dIndexEnd = this.dIndexEnd;
         end
         
     end

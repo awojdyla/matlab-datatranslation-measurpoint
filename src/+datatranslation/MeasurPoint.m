@@ -154,10 +154,15 @@ methods
         c = this.query(':CONF:FILT?');
     end
     
+    % No filter. Providdes fast response times. Manfucturer recommends the
+    % only timne it is desireable to run is if you are using fast things
+    % sampled > 1 Hz.
     function setFilterTypeToRaw(this)
         this.query(':CONF:FILT RAW');
     end
     
+    % this low-pass filter take the previous 16 samples, adds themn
+    % together, and divides by 16. 
     function setFilterTypeToAvg(this)
         this.query(':CONF:FILT AVG');
     end

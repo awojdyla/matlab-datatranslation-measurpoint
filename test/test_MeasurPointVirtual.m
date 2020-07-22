@@ -67,7 +67,7 @@ fprintf('\n')
 
 %% Read as many values as supported by network packet continuously
 
-[dIndexStart, dIndexEnd] = mp. getIndiciesOfScanBuffer()
+[dIndexStart, dIndexEnd] = mp.getIndiciesOfScanBuffer()
 for n = 1 : 5
     [results, dIndexStart] = mp.getScanDataAheadOfIndex(dIndexStart);
     plot(...

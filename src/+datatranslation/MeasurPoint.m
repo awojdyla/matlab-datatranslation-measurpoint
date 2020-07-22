@@ -702,9 +702,8 @@ methods
     end
     
     % {u8Channel} zero-indexed channel of the instrument
-    function d = getScanDataOfChannel(this, u8Channel)
-        
-        dAll = this.getScanData();
+    function [d, lError] = getScanDataOfChannel(this, u8Channel)
+        [dAll, lError] = this.getScanData();
         d = dAll(u8Channel + 1);
         
     end
@@ -898,7 +897,10 @@ methods
     % setSensorType
     % initiateScan
     % abortScan
-    function result = getScanData(this)
+    function [result, lError] = getScanData(this)
+        
+        % reset {logical} error
+        lError = false;
         
         % Check if should return cached value
         if ~isempty(this.ticGetVariables)
@@ -919,9 +921,23 @@ methods
         fprintf(this.comm, cCmd); 
         dBytes = this.getNumOfExpectedBytesInScanRecord();
        
-        [bytes_dec, count, error] = fread(this.comm, dBytes);
+        [bytes_dec, count, errorMsg] = fread(this.comm, dBytes);
         
-        if ~isempty(error)
+        
+        if ~isempty(errorMsg)
+            cMsg = [...
+                    '+datatranslation/MeasurPoint.getScanData()', ...
+                    'read error. ', ...
+                    'Returning last good data and lError = true.\n'
+                ];
+                fprintf(cMsg);
+            lError = true;
+            result = this.dScanData;
+            return;
+        end
+        
+        %{
+        if ~isempty(errorMsg)
             
             % Try again
             this.dNumOfSequentialGetScanDataErrors = this.dNumOfSequentialGetScanDataErrors + 1;
@@ -953,9 +969,10 @@ methods
             this.lIsBusy = false;
             
             
-            result = this.getScanData();
+            result = this.getScanData(); % call recursively
             return;
         end
+        %}
         
         
         
@@ -1146,7 +1163,7 @@ methods
         % query string
         sQuery = sprintf('MEAS:VOLT? (@%s)', cChannels);
         
-        % send the query
+        % send the query and wait for answer
         cBytestring = this.queryData(sQuery,nbytes);
         
         % unpack the data

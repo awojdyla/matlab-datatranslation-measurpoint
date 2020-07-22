@@ -6,6 +6,7 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         dHz = 10
         
         cFilterType = 'AVG'
+        dScanPeriod = 1;
     end
     
     
@@ -83,11 +84,17 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         end
        
         
-        function d = getScanData(this)
+        function [d, lError] = getScanData(this)
             d = zeros(1, 48);
             d(1:8) = randn(1,8) + 18;
             d(9:32) = randn(1, 24) + 20;
             d(33:48) = randn(1, 16) + 5;
+            lError = false
+        end
+        
+        function [d, lError] = getScanDataOfChannel(this, channel)
+            [dAll, lError] = this.getScanData();
+            d = dAll(channel);
         end
         
         function d = measure_temperature_tc(this, channel_list, channel_type)
@@ -124,6 +131,28 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
         function setFilterTypeToAvg(this)
             this.cFilterType = 'AVG';
         end
+        
+        function setSensorType(this, channel, type)
+            % fixme
+        end
+        
+        function setScanList(this, dChannels)
+            % fixme
+        end
+        
+        function setScanPeriod(this, dPeriod)
+            % fixme
+            this.dScanPeriod = dPeriod;
+        end
+        
+        function d = getScanPeriod(this)
+            d = this.dScanPeriod;
+        end
+                
+        function initiateScan(this)
+            % fixme
+        end
+        
     end
 end
 

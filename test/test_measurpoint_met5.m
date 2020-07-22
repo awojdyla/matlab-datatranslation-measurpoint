@@ -36,9 +36,14 @@ mp.initiateScan();
 [dIndexStart, dIndexEnd] = mp. getIndiciesOfScanBuffer()
 
 %% Read all values from the scan buffer
-results = mp.getScanData()
+[results, lError] = mp.getScanData()
+
+%% Read single channel from the scan buffer
+[result, lError] = mp.getScanDataOfChannel(33)
 
 
+%% THE FOLLOWING COMMANDS ONLY WORK IF THE SCAN IS NOT RUNNING.  
+% Need to call abortScan() to use them !!!!
 
 %% Measure voltage on one channel
 tic

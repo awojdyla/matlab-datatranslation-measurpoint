@@ -26,10 +26,12 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             l = false;
         end
         
+        %{
         function d = getScanDataOfChannel(this, u8Channel)
             dAll = this.getScanData();
             d = dAll(u8Channel + 1);
         end
+        %}
         
         function [dIndexStart, dIndexEnd] = getIndiciesOfScanBuffer(this)
             

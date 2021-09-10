@@ -17,6 +17,14 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             this.dateTimeStart = datetime('now');
             
         end
+        
+        function clearBytesAvailable(this)
+            
+        end
+        
+        function abortScan(this)
+            
+        end
 
         function c = idn(this)
             c = 'MeasurPointVirtual';

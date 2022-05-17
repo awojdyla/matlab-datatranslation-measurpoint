@@ -99,7 +99,7 @@ classdef MeasurPointVirtual < datatranslation.AbstractMeasurPoint
             d(1:8) = randn(1,8) + 18;
             d(9:32) = randn(1, 24) + 20;
             d(33:48) = randn(1, 16) + 5;
-            lError = false
+            lError = false;
         end
         
         function [d, lError] = getScanDataOfChannel(this, channel)
